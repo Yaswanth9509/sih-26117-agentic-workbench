@@ -29,7 +29,13 @@ class Settings(BaseSettings):
     # ollama binds IPv4, so every probe would stall ~2s before falling back.
     OLLAMA_BASE_URL: str = "http://127.0.0.1:11434"
     OLLAMA_MODEL: str = "mistral"
-    OLLAMA_TIMEOUT_SEC: int = 20
+    # Must stay below AGENT_TIMEOUT_SEC so the engine's own rule-based
+    # fallback runs instead of the agent being killed mid-call (same rule
+    # as GEMINI_TIMEOUT_SEC below). CPU inference on a 7B model routinely
+    # exceeds this, so ollama degrades to rule-based rather than answering
+    # in time on laptop hardware - the fallback firing is the correct,
+    # intended behavior here, not a failure.
+    OLLAMA_TIMEOUT_SEC: int = 6
     OLLAMA_PROBE_TIMEOUT_SEC: float = 1.0
 
     # ── LLM: Google Gemini ────────────────────────────────────────────────────
