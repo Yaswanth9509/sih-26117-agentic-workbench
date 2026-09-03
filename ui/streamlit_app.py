@@ -286,7 +286,7 @@ elif not query.strip() and analyze:
 st.markdown("---")
 with st.expander("📋 Recent Decisions (Audit Log)", expanded=False):
     try:
-        audit_resp = httpx.get(f"{API_URL}/recent?n=5", timeout=5)
+        audit_resp = httpx.get(f"{API_URL}/recent?n=10", timeout=5)
         if audit_resp.status_code == 200:
             entries = audit_resp.json().get("decisions", [])
             if entries:
