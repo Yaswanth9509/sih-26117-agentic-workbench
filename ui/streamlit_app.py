@@ -5,9 +5,8 @@ Calls the FastAPI backend and displays structured decisions.
 
 from __future__ import annotations
 
-import json
+import os
 import time
-from datetime import datetime
 
 import httpx
 import streamlit as st
@@ -20,7 +19,37 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-API_URL = "http://localhost:8000"
+# Configurable so the UI can run split from the API (separate container/host).
+#
+# Default is 127.0.0.1, NOT localhost: on Windows "localhost" resolves to ::1
+# first, and because uvicorn binds IPv4 only, httpx spends ~2s on a doomed
+# IPv6 attempt before falling back - on every single call.
+API_URL = os.getenv("API_URL", "http://127.0.0.1:8000").rstrip("/")
+
+
+@st.cache_data(ttl=10, show_spinner=False)
+def fetch_health() -> dict | None:
+    """Backend health. Cached so it is not re-fetched on every rerun."""
+    try:
+        response = httpx.get(f"{API_URL}/health", timeout=3)
+        if response.status_code == 200:
+            return dict(response.json())
+        return None
+    except Exception:
+        return None
+
+
+@st.cache_data(ttl=5, show_spinner=False)
+def fetch_recent(n: int = 10) -> list[dict] | None:
+    """Recent audit entries. Cache is cleared after a new decision."""
+    try:
+        response = httpx.get(f"{API_URL}/recent?n={n}", timeout=5)
+        if response.status_code == 200:
+            return list(response.json().get("decisions", []))
+        return None
+    except Exception:
+        return None
+
 
 # ── Custom CSS ────────────────────────────────────────────────────────────────
 st.markdown(
@@ -88,15 +117,15 @@ with st.sidebar:
 
     st.divider()
     st.markdown("### API Status")
-    try:
-        r = httpx.get(f"{API_URL}/health", timeout=3)
-        if r.status_code == 200:
-            st.success("API: Online ✅")
-        else:
-            st.error("API: Error")
-    except Exception:
+    health = fetch_health()
+    if health is None:
         st.error("API: Offline ❌")
-        st.caption(f"Start: `uvicorn api.main:app --port 8000`")
+        st.caption("Start: `uvicorn api.main:app --port 8000`")
+    else:
+        st.success("API: Online ✅")
+        st.caption(f"Engine: `{health.get('engine', 'unknown')}`")
+        if health.get("circuit_open"):
+            st.caption("⚠️ Provider circuit open — serving rule-based")
 
 # ── Main area ──────────────────────────────────────────────────────────────────
 st.markdown("# 🏭 MRPL Agentic Workbench")
@@ -149,6 +178,8 @@ if analyze and query.strip():
                 st.stop()
 
             d = resp.json()
+            # A new decision was just logged - drop the cached audit list.
+            fetch_recent.clear()
 
         except httpx.ConnectError:
             st.error(
@@ -235,14 +266,18 @@ if analyze and query.strip():
                 unsafe_allow_html=True,
             )
 
+        # Most severe first: escalations outrank violations, which outrank warnings.
+        escalations = val.get("escalations", [])
         violations = val.get("violations", [])
         warnings = val.get("warnings", [])
-        if violations:
-            for v in violations:
-                st.error(f"❌ Violation: {v}")
-        if warnings:
-            for w in warnings:
-                st.warning(f"⚠️ Warning: {w}")
+        for e in escalations:
+            st.error(f"🚨 **ESCALATION:** {e}")
+        for v in violations:
+            st.error(f"❌ Violation: {v}")
+        for w in warnings:
+            st.warning(f"⚠️ Warning: {w}")
+        if not (escalations or violations or warnings):
+            st.success("✅ All checks passed — no violations, warnings or escalations.")
 
     with col_right:
         # Reasoning chain
@@ -285,29 +320,25 @@ elif not query.strip() and analyze:
 # ── Audit log tab ─────────────────────────────────────────────────────────────
 st.markdown("---")
 with st.expander("📋 Recent Decisions (Audit Log)", expanded=False):
-    try:
-        audit_resp = httpx.get(f"{API_URL}/recent?n=10", timeout=5)
-        if audit_resp.status_code == 200:
-            entries = audit_resp.json().get("decisions", [])
-            if entries:
-                for e in entries:
-                    ts = e.get("timestamp", "")[:19].replace("T", " ")
-                    status = e.get("validation_status", "")
-                    color = {
-                        "APPROVED": "#22c55e",
-                        "APPROVED_WITH_WARNINGS": "#f59e0b",
-                        "REJECTED": "#ef4444",
-                        "ESCALATE": "#a855f7",
-                    }.get(status, "#888")
-                    st.markdown(
-                        f"**{e.get('decision_id','')}** | `{e.get('equipment','')}` | "
-                        f"<span style='color:{color}'>{status}</span> | "
-                        f"Score: {e.get('compliance_score',0)}% | {ts}",
-                        unsafe_allow_html=True,
-                    )
-            else:
-                st.info("No decisions yet. Run a query first.")
-        else:
-            st.warning("Could not load audit log.")
-    except Exception:
-        st.warning("API not reachable.")
+    entries = fetch_recent(10)
+    if entries is None:
+        st.warning("Could not load audit log — API not reachable.")
+    elif not entries:
+        st.info("No decisions yet. Run a query first.")
+    else:
+        for e in entries:
+            ts = e.get("timestamp", "")[:19].replace("T", " ")
+            status = e.get("validation_status", "")
+            color = {
+                "APPROVED": "#22c55e",
+                "APPROVED_WITH_WARNINGS": "#f59e0b",
+                "REJECTED": "#ef4444",
+                "ESCALATE": "#a855f7",
+            }.get(status, "#888")
+            st.markdown(
+                f"**{e.get('decision_id','')}** | `{e.get('equipment','')}` | "
+                f"<span style='color:{color}'>{status}</span> | "
+                f"Score: {e.get('compliance_score',0)}% | "
+                f"`{e.get('engine_used','—')}` | {ts}",
+                unsafe_allow_html=True,
+            )
