@@ -72,7 +72,7 @@ async def analyze_query(request: QueryRequest) -> dict:
 
     - **Agent 1**: Understand intent and extract entities
     - **Agent 2**: Retrieve relevant MRPL documents
-    - **Agent 3**: Generate reasoning (Groq LLM or rule-based fallback)
+    - **Agent 3**: Generate reasoning (configured LLM provider, or rule-based)
     - **Agent 4**: Validate against 5 business rules
     - **Agent 5**: Synthesize final decision
     """

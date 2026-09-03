@@ -175,6 +175,26 @@ Pre-deployment gate:
 bash scripts/run_checks.sh
 ```
 
+### Concurrency
+
+```bash
+uvicorn api.main:app --port 8000        # terminal 1
+python scripts/stress_test.py           # terminal 2
+```
+
+50 concurrent requests from 50 distinct engineer IDs. Measured results:
+
+| Engine | Throughput | p50 | p95 | Outcome |
+|---|---|---|---|---|
+| `rule-based` | 210 req/s | 0.14s | 0.23s | 50/50 answered |
+| `gemini` (live) | 8.7 req/s | 3.72s | 5.55s | 50/50 answered; 15 served by Gemini, 35 degraded to rule-based under vendor throttling |
+
+Under burst, cloud throttling degrades individual answers rather than
+failing requests — no 5xx, no dropped connections, service healthy after.
+Note the p95 of 5.55s leaves little headroom against the 6s target when a
+cloud provider is under load; the offline engines are an order of magnitude
+faster.
+
 ---
 
 ## Project Structure
