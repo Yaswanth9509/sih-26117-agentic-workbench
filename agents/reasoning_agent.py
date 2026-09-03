@@ -39,7 +39,12 @@ class ReasoningAgent(BaseAgent):
     """
 
     def __init__(self) -> None:
-        super().__init__(name="reasoning", timeout_sec=settings.AGENT_TIMEOUT_SEC)
+        # Own timeout budget, not the shared AGENT_TIMEOUT_SEC: this is the
+        # only agent that may call a local GPU LLM, which is slower than the
+        # other four agents' typical <20ms.
+        super().__init__(
+            name="reasoning", timeout_sec=settings.REASONING_AGENT_TIMEOUT_SEC
+        )
 
     async def _run(self, input_data: dict[str, Any]) -> dict[str, Any]:
         query: str = input_data.get("query", "")

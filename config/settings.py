@@ -29,13 +29,14 @@ class Settings(BaseSettings):
     # ollama binds IPv4, so every probe would stall ~2s before falling back.
     OLLAMA_BASE_URL: str = "http://127.0.0.1:11434"
     OLLAMA_MODEL: str = "mistral"
-    # Must stay below AGENT_TIMEOUT_SEC so the engine's own rule-based
-    # fallback runs instead of the agent being killed mid-call (same rule
-    # as GEMINI_TIMEOUT_SEC below). CPU inference on a 7B model routinely
-    # exceeds this, so ollama degrades to rule-based rather than answering
-    # in time on laptop hardware - the fallback firing is the correct,
-    # intended behavior here, not a failure.
-    OLLAMA_TIMEOUT_SEC: int = 6
+    # Must stay below REASONING_AGENT_TIMEOUT_SEC so the engine's own
+    # rule-based fallback runs instead of the agent being killed mid-call
+    # (same rule as GEMINI_TIMEOUT_SEC below). Measured on an RTX 4060 with
+    # the model warm in VRAM: a full reasoning call (JSON-constrained
+    # decoding, real prompt size) takes ~7.4s - CPU-only inference is far
+    # slower and will routinely miss even this, correctly degrading to
+    # rule-based instead of answering in time.
+    OLLAMA_TIMEOUT_SEC: int = 12
     OLLAMA_PROBE_TIMEOUT_SEC: float = 1.0
 
     # ── LLM: Google Gemini ────────────────────────────────────────────────────
@@ -44,8 +45,8 @@ class Settings(BaseSettings):
     GEMINI_BASE_URL: str = "https://generativelanguage.googleapis.com/v1beta"
     GEMINI_MAX_TOKENS: int = 800
     GEMINI_TEMPERATURE: float = 0.3
-    # Must stay below AGENT_TIMEOUT_SEC so the engine's own rule-based
-    # fallback runs instead of the agent being killed mid-call.
+    # Must stay below REASONING_AGENT_TIMEOUT_SEC so the engine's own
+    # rule-based fallback runs instead of the agent being killed mid-call.
     GEMINI_TIMEOUT_SEC: int = 5
 
     # ── LLM: Groq ─────────────────────────────────────────────────────────────
@@ -91,6 +92,11 @@ class Settings(BaseSettings):
 
     # ── Timeouts ──────────────────────────────────────────────────────────────
     AGENT_TIMEOUT_SEC: int = 8
+    # Reasoning is the one agent that may call a local GPU LLM. Separate
+    # budget so this doesn't loosen the timeout on the other four agents,
+    # which consistently finish in <20ms. Must stay above every provider's
+    # own *_TIMEOUT_SEC above and below WORKFLOW_TIMEOUT_SEC below.
+    REASONING_AGENT_TIMEOUT_SEC: int = 15
     WORKFLOW_TIMEOUT_SEC: int = 30
     REQUEST_TIMEOUT_SEC: int = 35
 
