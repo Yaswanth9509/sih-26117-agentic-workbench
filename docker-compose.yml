@@ -14,8 +14,15 @@ services:
       # Optional cloud keys. Leave blank for a fully offline container.
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       - GROQ_API_KEY=${GROQ_API_KEY:-}
-      # Reach an ollama daemon running on the host, not in this container.
-      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      # Reach an ollama daemon running on the HOST, not in this container.
+      # Deliberately NOT ${OLLAMA_BASE_URL:-...}: that pattern lets a value
+      # in .env silently win, and .env's OLLAMA_BASE_URL is for running the
+      # app directly on the host (127.0.0.1) - inside this container,
+      # 127.0.0.1 means the container itself, not the host, so an ollama
+      # running on the host would be invisible with no error, just an
+      # "unavailable" provider. This value is fixed, not overridable via
+      # .env, because it is only ever correct one way from inside a container.
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
       - LOG_LEVEL=INFO
     extra_hosts:
       - "host.docker.internal:host-gateway"

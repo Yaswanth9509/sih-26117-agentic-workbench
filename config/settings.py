@@ -63,6 +63,14 @@ class Settings(BaseSettings):
     # stops paying network latency on every query. 0 disables the breaker.
     LLM_FAILURE_THRESHOLD: int = 2
 
+    # How long the circuit stays open before one retry is allowed (the
+    # standard half-open step). Without this, a transient burst - e.g. many
+    # concurrent requests queued behind one local GPU - permanently disables
+    # that provider for the rest of the process, even after the GPU is idle
+    # again seconds later. 0 disables recovery (circuit stays open forever,
+    # matching the old behavior).
+    CIRCUIT_COOLDOWN_SEC: float = 20.0
+
     # How long an availability probe result stays fresh. Without this, /health
     # re-probes the ollama port on every single request. 0 disables caching.
     PROVIDER_PROBE_TTL_SEC: float = 30.0

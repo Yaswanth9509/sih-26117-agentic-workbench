@@ -72,6 +72,7 @@ class HealthResponse(BaseModel):
     version: str
     engine: str = "unknown"
     circuit_open: bool = False
+    circuit_retry_in_sec: float | None = None
     providers: dict[str, bool] = {}
 
 

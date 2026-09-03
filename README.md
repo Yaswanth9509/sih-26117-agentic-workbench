@@ -136,9 +136,14 @@ curl -X POST http://localhost:8000/analyze \
   "status": "OK",
   "engine": "rule-based",
   "circuit_open": false,
+  "circuit_retry_in_sec": null,
   "providers": {"ollama": false, "gemini": false, "groq": false, "rule-based": true}
 }
 ```
+
+`circuit_retry_in_sec` is `null` when the circuit is closed, and counts down
+from `CIRCUIT_COOLDOWN_SEC` while it's open - once it hits 0, the next query
+gets one retry (half-open); a success closes the circuit fully.
 
 ---
 
@@ -159,15 +164,20 @@ Full request/response pairs: [docs/EXAMPLES.md](docs/EXAMPLES.md).
 ## Running Tests
 
 ```bash
-pytest tests/ -v                      # all 64 tests, fully offline
+pytest tests/ -v                      # all 77 tests
 pytest tests/test_agents.py -v        # unit tests for all 5 agents
 pytest tests/test_workflow.py -v      # end-to-end pipeline
 pytest tests/test_security.py -v      # sanitization + rate limiting
-pytest tests/test_llm_providers.py -v # provider routing + failover
+pytest tests/test_llm_providers.py -v # provider routing + failover + circuit breaker
+pytest tests/test_ui.py -v            # Streamlit smoke tests (mypy can't check this file)
 ```
 
-The suite never touches the network: `tests/conftest.py` pins the reasoning
-engine to `rule-based`, and provider transports are stubbed.
+Deterministic and offline by default: `tests/conftest.py` pins the reasoning
+engine to `rule-based` and every provider transport is stubbed. The one
+exception is `tests/test_ui.py::TestQueryFlow`, which drives the real
+Streamlit app against a live backend to catch bugs static analysis can't
+(Streamlit ships no type stubs) - it auto-skips, not fails, when no backend
+is running on `API_URL` (default `http://127.0.0.1:8000`).
 
 Pre-deployment gate:
 
@@ -187,13 +197,32 @@ python scripts/stress_test.py           # terminal 2
 | Engine | Throughput | p50 | p95 | Outcome |
 |---|---|---|---|---|
 | `rule-based` | 210 req/s | 0.14s | 0.23s | 50/50 answered |
-| `gemini` (live) | 8.7 req/s | 3.72s | 5.55s | 50/50 answered; 15 served by Gemini, 35 degraded to rule-based under vendor throttling |
+| `gemini` (live) | 8.7 req/s | 3.72s | 5.55s | 50/50 answered; some calls degraded to rule-based under vendor throttling |
+| `ollama` (RTX 4060, warm) | 3.3 req/s | 12–14s | ~15s | 50/50 answered; only ~1–2 served by ollama per burst (single-GPU serializes requests), the rest safely degrade to rule-based |
 
-Under burst, cloud throttling degrades individual answers rather than
-failing requests — no 5xx, no dropped connections, service healthy after.
-Note the p95 of 5.55s leaves little headroom against the 6s target when a
-cloud provider is under load; the offline engines are an order of magnitude
-faster.
+Under any kind of burst - cloud throttling or GPU contention - individual
+answers degrade to the deterministic engine rather than the request
+failing: no 5xx, no dropped connections, service healthy after. Two failure
+modes found and fixed during load testing, both now covered by regression
+tests:
+
+1. **Circuit breaker had no recovery.** A burst of ollama timeouts opened
+   the circuit and it stayed open for the rest of the process - even
+   minutes later, with the GPU completely idle. Fixed with a standard
+   half-open cooldown (`CIRCUIT_COOLDOWN_SEC`, default 20s): one retry is
+   allowed after the cooldown, and a success closes the circuit fully.
+2. **A reasoning-agent timeout became a raw HTTP 500.** Under heavy
+   concurrency, `asyncio.to_thread`'s worker pool can queue a request long
+   enough that the *agent's* outer timeout fires before the LLM provider's
+   own internal fallback ever runs - so the one safety net that exists
+   specifically to guarantee an answer never got a chance to. The
+   orchestrator now computes a rule-based answer directly whenever the
+   reasoning agent doesn't return `SUCCESS`, for any reason, so a request
+   can never hard-fail on this stage.
+
+Single-query (non-concurrent) latency, the actual demo scenario: `gemini`
+~2.6s, `rule-based` ~30ms, `ollama` (RTX 4060, model warm) ~6-7s - real
+generative output from the local model, slightly over the 6s target.
 
 ---
 

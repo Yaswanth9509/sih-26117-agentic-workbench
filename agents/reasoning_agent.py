@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from typing import Any
 
 from agents.base_agent import BaseAgent
@@ -29,6 +30,63 @@ def _get_engine() -> LLMEngine:
     if _llm_engine is None:
         _llm_engine = LLMEngine()
     return _llm_engine
+
+
+def _coerce_float(value: Any, default: float) -> float:
+    """
+    Provider JSON is LLM-generated, not schema-enforced. A generative model
+    (ollama/gemini/groq) can return a number as a string, or formatted (e.g.
+    "35,000" or "Rs.35000") even when it usually doesn't - observed live:
+    the identical prompt occasionally returns cost_estimate_inr as a string.
+    Coerce defensively here, once, so validation math and the UI's numeric
+    formatting never see anything but a real float.
+    """
+    if isinstance(value, bool):
+        return default  # bool is an int subclass in Python; not a real number here
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        cleaned = re.sub(r"[^\d.-]", "", value)
+        if cleaned:
+            try:
+                return float(cleaned)
+            except ValueError:
+                pass
+    return default
+
+
+def _coerce_string_list(value: Any) -> list[str]:
+    """Provider output should be a list of reasoning steps; degrade any
+    other shape (a bare string, None, ...) into a safe list rather than
+    breaking a downstream len()/iteration assumption."""
+    if isinstance(value, list):
+        return [str(item) for item in value]
+    if isinstance(value, str) and value:
+        return [value]
+    return []
+
+
+def normalise_reasoning_result(result: dict[str, Any]) -> dict[str, Any]:
+    """
+    Normalise a raw provider result (whatever LLMEngine.generate_reasoning
+    or RuleBasedEngine.generate returned) into the fixed shape every
+    downstream agent depends on - both keys AND types, since provider JSON
+    is LLM-generated and not schema-enforced. Shared by ReasoningAgent._run
+    and the orchestrator's own last-resort fallback path (used when the
+    reasoning AGENT itself times out, not just its LLM provider) so both
+    apply identical rules.
+    """
+    return {
+        "reasoning": _coerce_string_list(result.get("reasoning", [])),
+        "recommendation": str(result.get("recommendation", "")),
+        "cost_estimate_inr": _coerce_float(
+            result.get("cost_estimate_inr"), default=0.0
+        ),
+        "downtime_hours": _coerce_float(result.get("downtime_hours"), default=0.0),
+        "risk_if_delayed": str(result.get("risk_if_delayed", "")),
+        "confidence": _coerce_float(result.get("confidence"), default=0.8),
+        "engine_used": result.get("engine", "rule-based"),
+    }
 
 
 class ReasoningAgent(BaseAgent):
@@ -72,13 +130,4 @@ class ReasoningAgent(BaseAgent):
             query=query,
         )
 
-        # Normalise fields so downstream agents always get consistent keys
-        return {
-            "reasoning": result.get("reasoning", []),
-            "recommendation": result.get("recommendation", ""),
-            "cost_estimate_inr": result.get("cost_estimate_inr", 0),
-            "downtime_hours": result.get("downtime_hours", 0.0),
-            "risk_if_delayed": result.get("risk_if_delayed", ""),
-            "confidence": result.get("confidence", 0.8),
-            "engine_used": result.get("engine", "rule-based"),
-        }
+        return normalise_reasoning_result(result)

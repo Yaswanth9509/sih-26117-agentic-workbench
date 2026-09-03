@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import os
 import time
+from typing import Any
 
 import httpx
 import streamlit as st
@@ -37,6 +38,19 @@ def fetch_health() -> dict | None:
         return None
     except Exception:
         return None
+
+
+def _safe_number(value: Any, default: float = 0.0) -> float:
+    """
+    ReasoningAgent normalises provider output before this page ever sees
+    it, so this should never fire in practice - kept as an independent
+    second layer so a future regression there degrades to a wrong-looking
+    number instead of crashing the whole results view for the viewer.
+    """
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
 
 
 @st.cache_data(ttl=5, show_spinner=False)
@@ -235,7 +249,7 @@ if analyze and query.strip():
           <p style="color:#94a3b8;margin:0.5rem 0">{rec.get('detail','')}</p>
           <hr style="border-color:#2e3a52;margin:0.8rem 0">
           <p>⏰ <strong>Timing:</strong> {rec.get('timing','')}</p>
-          <p>💰 <strong>Cost Est.:</strong> Rs.{rec.get('estimated_cost_inr',0):,.0f}</p>
+          <p>💰 <strong>Cost Est.:</strong> Rs.{_safe_number(rec.get('estimated_cost_inr')):,.0f}</p>
           <p>🔧 <strong>Downtime:</strong> {rec.get('estimated_downtime_hours',0)} hours</p>
           <p>⚠️ <strong>Risk if Delayed:</strong> {rec.get('risk_if_delayed','')}</p>
         </div>

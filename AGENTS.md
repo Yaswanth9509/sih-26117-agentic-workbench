@@ -93,22 +93,26 @@ without checking for conflicts first.
     Request:  {"query": str, "user_id": str (optional)}
     Response: {"decision_id": str, "recommendation": dict, "confidence": float, "inference_time_ms": int}
   GET /health
-    Response: {"status": "OK", "service": str, "version": str,
-               "engine": str, "circuit_open": bool, "providers": dict}
+    Response: {"status": "OK", "service": str, "version": str, "engine": str,
+               "circuit_open": bool, "circuit_retry_in_sec": float | None,
+               "providers": dict}
 
 ---
 
 ## Key Configuration Constants
 
-  LLM_PROVIDER           = "auto"        # ollama | gemini | groq | rule-based
-  OLLAMA_MODEL           = "mistral"
-  OLLAMA_BASE_URL        = "http://localhost:11434"
-  GEMINI_MODEL           = "gemini-flash-lite-latest"
-  GEMINI_TIMEOUT_SEC     = 5             # below AGENT_TIMEOUT_SEC by design
-  GROQ_MODEL             = "llama-3.1-8b-instant"
-  LLM_FAILURE_THRESHOLD  = 2             # circuit breaker
-  AGENT_TIMEOUT_SEC      = 8
-  WORKFLOW_TIMEOUT_SEC   = 30
+  LLM_PROVIDER              = "auto"     # ollama | gemini | groq | rule-based
+  OLLAMA_MODEL              = "mistral"
+  OLLAMA_BASE_URL           = "http://127.0.0.1:11434"  # host.docker.internal in the container
+  OLLAMA_TIMEOUT_SEC        = 12         # below REASONING_AGENT_TIMEOUT_SEC by design
+  GEMINI_MODEL              = "gemini-flash-lite-latest"
+  GEMINI_TIMEOUT_SEC        = 5          # below REASONING_AGENT_TIMEOUT_SEC by design
+  GROQ_MODEL                = "llama-3.1-8b-instant"
+  LLM_FAILURE_THRESHOLD     = 2          # circuit breaker: opens after N consecutive failures
+  CIRCUIT_COOLDOWN_SEC      = 20         # circuit auto-retries (half-open) after this long
+  AGENT_TIMEOUT_SEC         = 8          # the other 4 agents; each typically <20ms
+  REASONING_AGENT_TIMEOUT_SEC = 15       # reasoning only - the one agent that may call a local GPU LLM
+  WORKFLOW_TIMEOUT_SEC      = 30
   MAX_QUERY_LENGTH       = 2000
   RATE_LIMIT_PER_MINUTE  = 10
   VECTOR_BACKEND         = "tfidf"       # faiss post-MVP
@@ -132,7 +136,11 @@ without checking for conflicts first.
 
   QueryUnderstandingAgent -> RetrievalAgent -> ReasoningAgent -> ValidationAgent -> DecisionAgent
 
-Each agent: independent, timeout-protected (5s), returns {"status": "SUCCESS"|"FAILED"|"TIMEOUT"}
+Each agent: independent, timeout-protected (8s; reasoning gets 15s - see
+Key Configuration Constants above), returns {"status": "SUCCESS"|"FAILED"|"TIMEOUT"}.
+If reasoning does not return SUCCESS for any reason, the orchestrator computes
+a rule-based answer directly rather than failing the request - a request can
+never hard-fail on this stage.
 
 ---
 

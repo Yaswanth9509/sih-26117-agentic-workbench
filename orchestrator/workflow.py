@@ -13,9 +13,10 @@ from typing import Any
 from config.settings import settings
 from agents.query_understanding import QueryUnderstandingAgent
 from agents.retrieval_agent import RetrievalAgent
-from agents.reasoning_agent import ReasoningAgent
+from agents.reasoning_agent import ReasoningAgent, normalise_reasoning_result
 from agents.validation_agent import ValidationAgent
 from agents.decision_agent import DecisionAgent
+from core.llm_engine import RuleBasedEngine
 from orchestrator.logging import log_decision
 
 logger = logging.getLogger("Orchestrator")
@@ -30,6 +31,11 @@ class AgentOrchestrator:
         self._reasoning = ReasoningAgent()
         self._validation = ValidationAgent()
         self._decision = DecisionAgent()
+        # Last-resort path for when the reasoning AGENT itself fails or
+        # times out - not just its LLM provider (LLMEngine already has its
+        # own internal fallback for that case). Synchronous, local, cannot
+        # itself fail or time out: see _reasoning_last_resort below.
+        self._rule_based_fallback = RuleBasedEngine()
 
     async def llm_health(self) -> dict[str, Any]:
         """Which reasoning engine is live, and what else is reachable."""
@@ -88,7 +94,7 @@ class AgentOrchestrator:
         if retrieval["status"] not in ("SUCCESS", "PARTIAL"):
             return _stage_error("retrieval", retrieval)
 
-        # ── Stage 3: Reason (Groq or rule-based) ─────────────────────────────
+        # ── Stage 3: Reason (pluggable provider, or rule-based) ──────────────
         reasoning = await self._reasoning.execute(
             {
                 "query": query,
@@ -97,7 +103,21 @@ class AgentOrchestrator:
             }
         )
         if reasoning["status"] != "SUCCESS":
-            return _stage_error("reasoning", reasoning)
+            # The reasoning AGENT (not just its LLM provider) failed or
+            # timed out - e.g. many requests queued behind one local GPU
+            # can outlive even the provider's own client-side timeout,
+            # because a thread-pool-queued call hasn't started its network
+            # clock yet when the agent's OUTER timeout fires. LLMEngine's
+            # own internal fallback can't help here since it never got a
+            # chance to run. Rather than fail the whole request (there IS
+            # always a safe answer available), compute one directly.
+            logger.warning(
+                f"reasoning agent did not complete (status="
+                f"{reasoning.get('status')}); using the always-available "
+                "rule-based engine directly so the request still returns "
+                "a decision"
+            )
+            reasoning = self._reasoning_last_resort(understanding)
 
         # ── Stage 4: Validate recommendation ─────────────────────────────────
         validation = await self._validation.execute(
@@ -130,6 +150,21 @@ class AgentOrchestrator:
             f"time_ms={total_ms} status={decision.get('validation', {}).get('status')}"
         )
         return decision
+
+    def _reasoning_last_resort(self, understanding: dict[str, Any]) -> dict[str, Any]:
+        """Compute a rule-based reasoning result directly, bypassing the
+        ReasoningAgent/LLMEngine layer entirely. Pure Python, no network
+        or thread-pool involvement, so it cannot itself time out."""
+        raw = self._rule_based_fallback.generate(
+            equipment=understanding.get("equipment", "unknown"),
+            intent=understanding.get("intent", "status_check"),
+            current_state=understanding.get("current_state", {}),
+            context_docs=[],
+            constraints=understanding.get("constraints", {}),
+        )
+        result = normalise_reasoning_result(raw)
+        result["status"] = "SUCCESS"
+        return result
 
 
 def _stage_error(stage: str, result: dict[str, Any]) -> dict[str, Any]:

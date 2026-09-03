@@ -74,14 +74,31 @@ Engineer (Browser)
   - `rule-based` — deterministic per-equipment rules, zero network. Always available.
 - **Selection:** `settings.LLM_PROVIDER`; `auto` probes ollama → gemini → groq →
   rule-based and caches the result for the process.
-- **Failure handling:** any provider error degrades to `RuleBasedEngine` rather
-  than failing the request. A circuit breaker opens after
-  `LLM_FAILURE_THRESHOLD` consecutive failures so a degraded cloud provider
-  cannot add its timeout to every later query.
-- **Concurrency:** the blocking HTTP call runs via `asyncio.to_thread`, so the
-  agent timeout can actually interrupt a hung provider.
-- **Timeout:** 8 seconds (provider timeouts are set below this so the engine's
-  own fallback runs first)
+- **Failure handling, two layers:**
+  1. Inside `LLMEngine`: any provider error degrades to `RuleBasedEngine`
+     rather than failing the request. A circuit breaker opens after
+     `LLM_FAILURE_THRESHOLD` consecutive failures so a degraded provider
+     cannot add its timeout to every later query - and auto-recovers: after
+     `CIRCUIT_COOLDOWN_SEC` (default 20s) one retry (half-open) is allowed,
+     and success closes the circuit fully. Without this a transient burst
+     (many requests queued behind one local GPU) would disable that
+     provider for the rest of the process, even once it's idle again.
+  2. In the orchestrator: if the reasoning AGENT itself doesn't return
+     `SUCCESS` - e.g. under heavy concurrency, `asyncio.to_thread`'s worker
+     pool can queue a call long enough that the agent's own outer timeout
+     fires before layer 1 ever gets to run - the orchestrator computes a
+     rule-based answer directly. A request can never hard-fail on this
+     stage; this was reproduced live (concurrent load on a warm local GPU
+     produced HTTP 500s before this existed) and is covered by a regression
+     test.
+- **Concurrency:** the blocking HTTP call runs via `asyncio.to_thread` so the
+  agent timeout can interrupt a hung provider - though the underlying OS
+  thread can't itself be killed, which is exactly the case layer 2 exists for.
+- **Timeout:** `REASONING_AGENT_TIMEOUT_SEC` = 15 seconds (the other 4 agents
+  use `AGENT_TIMEOUT_SEC` = 8s; this one gets its own, larger budget because
+  it's the only agent that may call a local GPU LLM). Provider timeouts
+  (`OLLAMA_TIMEOUT_SEC`=12, `GEMINI_TIMEOUT_SEC`=5, `GROQ_TIMEOUT_SEC`=8) are
+  all set below 15s so the engine's own fallback runs first, in the common case.
 
 ### Agent 4 — ValidationAgent
 - **File:** `agents/validation_agent.py`
@@ -184,7 +201,8 @@ sih-26117-agentic-workbench/
 
 1. **Input Sanitization** — 16 regex patterns block SQL, XSS, prompt injection
 2. **Rate Limiting** — sliding 60-second window, 10 req/min/client
-3. **Timeout** — every agent has 8s asyncio timeout; workflow 30s total
+3. **Timeout** — 8s asyncio timeout per agent (reasoning: 15s, the only
+   agent that may call a local GPU LLM); workflow 30s total
 4. **No Secrets in Code** — all config via pydantic-settings + `.env`
 5. **Audit Trail** — append-only JSONL, every decision logged immutably
 

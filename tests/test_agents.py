@@ -142,6 +142,92 @@ class TestReasoningAgent:
         )
         assert r["status"] == "FAILED"
 
+    def _run_with_stubbed_provider(self, monkeypatch, raw_result: dict) -> dict:
+        """Run the agent with LLMEngine.generate_reasoning stubbed to return
+        exactly `raw_result`, unmodified - simulates whatever shape a
+        generative provider's JSON actually came back as."""
+        import agents.reasoning_agent as ra_mod
+
+        engine = ra_mod._get_engine()
+        monkeypatch.setattr(engine, "generate_reasoning", lambda **kwargs: raw_result)
+        return asyncio.run(
+            self.agent.execute(
+                {
+                    "query": "When to service reactor-4?",
+                    "understanding": {
+                        "equipment": "reactor-4",
+                        "intent": "schedule_maintenance",
+                        "current_state": {"pressure_bar": 4.2},
+                        "constraints": {"budget_inr": 50000},
+                    },
+                    "context_documents": [],
+                }
+            )
+        )
+
+    def test_coerces_string_cost_to_float(self, monkeypatch):
+        """
+        Regression: a live ollama call returned estimated_cost_inr as a
+        string on one call and an int on the next, for the identical
+        prompt - generative JSON is not schema-enforced. The string type
+        reached the UI unmodified and crashed Streamlit's numeric ':,.0f'
+        formatting. ReasoningAgent must normalise this before it leaves.
+        """
+        r = self._run_with_stubbed_provider(
+            monkeypatch,
+            {
+                "reasoning": ["step 1"],
+                "recommendation": "Service now",
+                "cost_estimate_inr": "35,000",  # comma-formatted string
+                "downtime_hours": "2.5",  # numeric string
+                "risk_if_delayed": "failure",
+                "confidence": 0.9,
+                "engine": "ollama",
+            },
+        )
+        assert r["status"] == "SUCCESS"
+        assert r["cost_estimate_inr"] == 35000.0
+        assert isinstance(r["cost_estimate_inr"], float)
+        assert r["downtime_hours"] == 2.5
+        assert isinstance(r["downtime_hours"], float)
+
+    def test_coerces_unparseable_cost_to_default(self, monkeypatch):
+        """A value with no extractable number degrades to 0.0, not a crash."""
+        r = self._run_with_stubbed_provider(
+            monkeypatch,
+            {
+                "reasoning": ["step 1"],
+                "recommendation": "Service now",
+                "cost_estimate_inr": "unknown",
+                "downtime_hours": None,
+                "risk_if_delayed": "failure",
+                "confidence": 0.9,
+                "engine": "ollama",
+            },
+        )
+        assert r["status"] == "SUCCESS"
+        assert r["cost_estimate_inr"] == 0.0
+        assert r["downtime_hours"] == 0.0
+
+    def test_coerces_bare_string_reasoning_to_list(self, monkeypatch):
+        """A provider that returns 'reasoning' as one string, not a list,
+        must not break downstream len()/iteration over reasoning steps."""
+        r = self._run_with_stubbed_provider(
+            monkeypatch,
+            {
+                "reasoning": "Pressure is high, service recommended",
+                "recommendation": "Service now",
+                "cost_estimate_inr": 35000,
+                "downtime_hours": 2.5,
+                "risk_if_delayed": "failure",
+                "confidence": 0.9,
+                "engine": "ollama",
+            },
+        )
+        assert r["status"] == "SUCCESS"
+        assert isinstance(r["reasoning"], list)
+        assert r["reasoning"] == ["Pressure is high, service recommended"]
+
 
 # ── Agent 4 ──────────────────────────────────────────────────────────────────
 class TestValidationAgent:

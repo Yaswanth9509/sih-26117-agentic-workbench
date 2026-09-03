@@ -430,6 +430,7 @@ class LLMEngine:
         self._resolved: str | None = None
         self._consecutive_failures = 0
         self._circuit_open = False
+        self._circuit_opened_at: float | None = None
         # provider name -> (monotonic timestamp, available)
         self._availability: dict[str, tuple[float, bool]] = {}
 
@@ -468,25 +469,49 @@ class LLMEngine:
 
     def _record_failure(self, provider_name: str) -> None:
         """
-        Open the circuit after repeated failures so a degraded cloud provider
-        cannot add its timeout to every subsequent query. Once open, queries go
-        straight to the rule-based engine for the life of the process.
+        Open the circuit after repeated failures so a degraded provider
+        cannot add its timeout to every subsequent query. While open, queries
+        go straight to the rule-based engine - until CIRCUIT_COOLDOWN_SEC
+        elapses, at which point one retry (half-open) is allowed again. A
+        failed half-open retry re-opens the circuit and restarts the cooldown.
         """
         threshold = settings.LLM_FAILURE_THRESHOLD
         if threshold <= 0:
             return
         self._consecutive_failures += 1
-        if self._consecutive_failures >= threshold and not self._circuit_open:
+        if self._consecutive_failures >= threshold:
+            was_open = self._circuit_open
             self._circuit_open = True
-            logger.warning(
-                f"circuit opened: {provider_name} failed "
-                f"{self._consecutive_failures}x, serving rule-based only"
-            )
+            self._circuit_opened_at = time.monotonic()
+            if not was_open:
+                logger.warning(
+                    f"circuit opened: {provider_name} failed "
+                    f"{self._consecutive_failures}x, serving rule-based for "
+                    f"{settings.CIRCUIT_COOLDOWN_SEC:.0f}s"
+                )
+            else:
+                logger.warning(
+                    f"circuit half-open retry failed for {provider_name}, "
+                    f"re-opening for another {settings.CIRCUIT_COOLDOWN_SEC:.0f}s"
+                )
+
+    def _circuit_allows_attempt(self) -> bool:
+        """True if the primary provider should be tried: circuit is closed,
+        or open long enough that a half-open retry is due."""
+        if not self._circuit_open:
+            return True
+        cooldown = settings.CIRCUIT_COOLDOWN_SEC
+        if cooldown <= 0:
+            return False  # circuit never recovers automatically
+        if self._circuit_opened_at is None:
+            return True
+        return (time.monotonic() - self._circuit_opened_at) >= cooldown
 
     def reset_circuit(self) -> None:
         """Close the circuit and retry the configured provider."""
         self._consecutive_failures = 0
         self._circuit_open = False
+        self._circuit_opened_at = None
 
     def _is_available_cached(self, name: str) -> bool:
         """
@@ -534,7 +559,7 @@ class LLMEngine:
         """
         provider_name = self.resolve_provider()
 
-        if provider_name != PROVIDER_RULE_BASED and not self._circuit_open:
+        if provider_name != PROVIDER_RULE_BASED and self._circuit_allows_attempt():
             try:
                 from config.prompts import (
                     REASONING_SYSTEM_PROMPT,
@@ -550,7 +575,11 @@ class LLMEngine:
                 result = self._providers[provider_name].generate(
                     REASONING_SYSTEM_PROMPT, user_prompt
                 )
+                if self._circuit_open:
+                    logger.info(f"circuit closed: {provider_name} recovered")
                 self._consecutive_failures = 0
+                self._circuit_open = False
+                self._circuit_opened_at = None
                 logger.info(f"engine={provider_name} equipment={equipment}")
                 return result
             except Exception as exc:
@@ -574,10 +603,17 @@ class LLMEngine:
     async def health_check(self) -> dict[str, Any]:
         """Report the active engine and what else is reachable."""
         resolved = self.resolve_provider()
+        cooldown_remaining = None
+        if self._circuit_open and self._circuit_opened_at is not None:
+            elapsed = time.monotonic() - self._circuit_opened_at
+            cooldown_remaining = max(0.0, settings.CIRCUIT_COOLDOWN_SEC - elapsed)
         return {
             "engine": PROVIDER_RULE_BASED if self._circuit_open else resolved,
             "status": "ok",
             "configured_provider": resolved,
             "circuit_open": self._circuit_open,
+            "circuit_retry_in_sec": (
+                round(cooldown_remaining, 1) if cooldown_remaining else None
+            ),
             "providers": self.available_providers(),
         }

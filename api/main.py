@@ -120,6 +120,7 @@ async def health_check() -> HealthResponse:
         version=settings.API_VERSION,
         engine=str(engine_status.get("engine", "unknown")),
         circuit_open=bool(engine_status.get("circuit_open", False)),
+        circuit_retry_in_sec=engine_status.get("circuit_retry_in_sec"),
         providers=dict(engine_status.get("providers", {})),
     )
 

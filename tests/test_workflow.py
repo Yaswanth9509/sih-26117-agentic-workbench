@@ -98,3 +98,35 @@ class TestWorkflow:
         r = self._run("Reactor-4 pressure 4.2 bar maintenance needed")
         assert r["metadata"]["engine_used"] in ("rule-based", "groq")
         assert r["metadata"]["total_time_ms"] >= 0
+
+    def test_reasoning_agent_timeout_still_returns_a_decision(self, monkeypatch):
+        """
+        Regression, reproduced live under concurrent load: many requests
+        queued behind one local GPU can make the reasoning AGENT's outer
+        timeout fire before its LLM provider's own internal fallback ever
+        gets a chance to run (the queued call hasn't started its network
+        clock yet). Previously this became WORKFLOW_FAILED -> HTTP 500,
+        even though a rule-based answer was always computable. The
+        orchestrator must now compute one directly instead of failing.
+        """
+
+        async def timed_out(self, input_data):
+            return {
+                "status": "TIMEOUT",
+                "agent": "reasoning",
+                "error": "reasoning timed out after 15s",
+                "execution_time_ms": 15000,
+            }
+
+        from agents.reasoning_agent import ReasoningAgent
+
+        monkeypatch.setattr(ReasoningAgent, "execute", timed_out)
+
+        r = self._run("Reactor-4 pressure 4.2 bar, last service 6 months.")
+
+        assert r["status"] == "SUCCESS"
+        assert r["decision_id"].startswith("DEC-")
+        assert r["metadata"]["engine_used"] == "rule-based"
+        assert r["recommendation"]["estimated_cost_inr"] > 0
+        assert isinstance(r["recommendation"]["estimated_cost_inr"], float)
+        assert len(r["reasoning_chain"]) >= 3

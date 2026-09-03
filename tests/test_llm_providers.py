@@ -285,3 +285,110 @@ class TestRouter:
         status = LLMEngine().available_providers()
         assert status[PROVIDER_RULE_BASED] is True
         assert set(status) >= {PROVIDER_OLLAMA, PROVIDER_GEMINI, PROVIDER_GROQ}
+
+    def test_circuit_stays_open_before_cooldown_elapses(self, monkeypatch):
+        """
+        Regression: a burst of concurrent requests (e.g. many queued behind
+        one local GPU) used to open the circuit permanently until process
+        restart. Verifies it does NOT retry before CIRCUIT_COOLDOWN_SEC.
+        """
+        monkeypatch.setattr(settings, "LLM_PROVIDER", PROVIDER_GEMINI)
+        monkeypatch.setattr(settings, "GEMINI_API_KEY", "test-key")
+        monkeypatch.setattr(settings, "LLM_FAILURE_THRESHOLD", 1)
+        monkeypatch.setattr(settings, "CIRCUIT_COOLDOWN_SEC", 20.0)
+
+        calls = {"n": 0}
+
+        def boom(*args: Any, **kwargs: Any) -> None:
+            calls["n"] += 1
+            raise RuntimeError("503 Service Unavailable")
+
+        monkeypatch.setattr(engine_mod.httpx, "post", boom)
+
+        fake_now = {"t": 1000.0}
+        monkeypatch.setattr(engine_mod.time, "monotonic", lambda: fake_now["t"])
+
+        engine = LLMEngine()
+        engine.generate_reasoning(**_reasoning_kwargs())  # opens circuit
+        assert calls["n"] == 1
+        assert engine._circuit_open is True
+
+        fake_now["t"] += 5.0  # well inside the 20s cooldown
+        engine.generate_reasoning(**_reasoning_kwargs())
+        assert calls["n"] == 1, "must not retry before the cooldown elapses"
+
+    def test_circuit_half_opens_and_recovers_after_cooldown(self, monkeypatch):
+        """After CIRCUIT_COOLDOWN_SEC, exactly one retry is allowed; success
+        closes the circuit fully (not just for that one call)."""
+        monkeypatch.setattr(settings, "LLM_PROVIDER", PROVIDER_GEMINI)
+        monkeypatch.setattr(settings, "GEMINI_API_KEY", "test-key")
+        monkeypatch.setattr(settings, "LLM_FAILURE_THRESHOLD", 1)
+        monkeypatch.setattr(settings, "CIRCUIT_COOLDOWN_SEC", 20.0)
+
+        state = {"fail": True}
+
+        def flaky(*args: Any, **kwargs: Any) -> _StubResponse:
+            if state["fail"]:
+                raise RuntimeError("503 Service Unavailable")
+            return _StubResponse(
+                {
+                    "candidates": [
+                        {"content": {"parts": [{"text": json.dumps(VALID_PAYLOAD)}]}}
+                    ]
+                }
+            )
+
+        monkeypatch.setattr(engine_mod.httpx, "post", flaky)
+
+        fake_now = {"t": 1000.0}
+        monkeypatch.setattr(engine_mod.time, "monotonic", lambda: fake_now["t"])
+
+        engine = LLMEngine()
+        engine.generate_reasoning(**_reasoning_kwargs())  # opens circuit
+        assert engine._circuit_open is True
+
+        fake_now["t"] += 20.0  # cooldown elapsed exactly
+        state["fail"] = False  # provider has recovered
+        result = engine.generate_reasoning(**_reasoning_kwargs())
+
+        assert result["engine"] == PROVIDER_GEMINI
+        assert engine._circuit_open is False
+        assert engine._circuit_opened_at is None
+
+        # A later, ordinary failure must be able to open the circuit again -
+        # confirms recovery didn't leave any latched state behind.
+        state["fail"] = True
+        engine.generate_reasoning(**_reasoning_kwargs())
+        assert engine._circuit_open is True
+
+    def test_failed_half_open_retry_extends_cooldown(self, monkeypatch):
+        """If the retry after cooldown also fails, the circuit re-opens with
+        a fresh cooldown window rather than retrying every call."""
+        monkeypatch.setattr(settings, "LLM_PROVIDER", PROVIDER_GEMINI)
+        monkeypatch.setattr(settings, "GEMINI_API_KEY", "test-key")
+        monkeypatch.setattr(settings, "LLM_FAILURE_THRESHOLD", 1)
+        monkeypatch.setattr(settings, "CIRCUIT_COOLDOWN_SEC", 20.0)
+
+        calls = {"n": 0}
+
+        def boom(*args: Any, **kwargs: Any) -> None:
+            calls["n"] += 1
+            raise RuntimeError("still down")
+
+        monkeypatch.setattr(engine_mod.httpx, "post", boom)
+
+        fake_now = {"t": 1000.0}
+        monkeypatch.setattr(engine_mod.time, "monotonic", lambda: fake_now["t"])
+
+        engine = LLMEngine()
+        engine.generate_reasoning(**_reasoning_kwargs())  # opens circuit
+        assert calls["n"] == 1
+
+        fake_now["t"] += 20.0  # cooldown elapsed - half-open retry allowed
+        engine.generate_reasoning(**_reasoning_kwargs())
+        assert calls["n"] == 2, "half-open retry should have been attempted"
+        assert engine._circuit_open is True
+
+        fake_now["t"] += 5.0  # inside the NEW cooldown window
+        engine.generate_reasoning(**_reasoning_kwargs())
+        assert calls["n"] == 2, "must not retry again until the new cooldown elapses"
