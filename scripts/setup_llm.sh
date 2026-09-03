@@ -14,7 +14,7 @@
 set -euo pipefail
 
 MODEL="${OLLAMA_MODEL:-mistral}"
-BASE_URL="${OLLAMA_BASE_URL:-http://localhost:11434}"
+BASE_URL="${OLLAMA_BASE_URL:-http://127.0.0.1:11434}"
 
 echo "=== MRPL Workbench: local LLM setup ==="
 echo "Model: $MODEL"

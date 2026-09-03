@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+import time
 from typing import Any, Protocol
 
 import httpx
@@ -429,6 +430,8 @@ class LLMEngine:
         self._resolved: str | None = None
         self._consecutive_failures = 0
         self._circuit_open = False
+        # provider name -> (monotonic timestamp, available)
+        self._availability: dict[str, tuple[float, bool]] = {}
 
     # ── Provider resolution ──────────────────────────────────────────────────
 
@@ -485,9 +488,29 @@ class LLMEngine:
         self._consecutive_failures = 0
         self._circuit_open = False
 
+    def _is_available_cached(self, name: str) -> bool:
+        """
+        Availability of one provider, memoised for PROVIDER_PROBE_TTL_SEC.
+
+        The ollama probe is a real network round trip. /health calls this for
+        every provider on every request, so without the cache a health check
+        costs seconds whenever ollama is absent.
+        """
+        ttl = settings.PROVIDER_PROBE_TTL_SEC
+        now = time.monotonic()
+
+        if ttl > 0:
+            cached = self._availability.get(name)
+            if cached is not None and now - cached[0] < ttl:
+                return cached[1]
+
+        available = self._providers[name].is_available()
+        self._availability[name] = (now, available)
+        return available
+
     def available_providers(self) -> dict[str, bool]:
         """Availability of every provider - used by the /health endpoint."""
-        status = {n: p.is_available() for n, p in self._providers.items()}
+        status = {name: self._is_available_cached(name) for name in self._providers}
         status[PROVIDER_RULE_BASED] = True
         return status
 

@@ -12,7 +12,7 @@ Usage:
     uvicorn api.main:app --port 8000
     # Terminal 2
     python scripts/stress_test.py
-    python scripts/stress_test.py --requests 100 --url http://localhost:8000
+    python scripts/stress_test.py --requests 100 --url http://127.0.0.1:8000
 
 Exit code 0 = passed, 1 = failed.
 """
@@ -140,7 +140,7 @@ async def run(url: str, count: int, budget_sec: float) -> bool:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--url", default="http://localhost:8000")
+    parser.add_argument("--url", default="http://127.0.0.1:8000")
     parser.add_argument("--requests", type=int, default=50)
     parser.add_argument(
         "--budget",

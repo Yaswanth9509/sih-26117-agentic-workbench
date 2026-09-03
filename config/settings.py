@@ -25,7 +25,9 @@ class Settings(BaseSettings):
     LLM_PROVIDER: str = "auto"
 
     # ── LLM: ollama (local Mistral-7B) ────────────────────────────────────────
-    OLLAMA_BASE_URL: str = "http://localhost:11434"
+    # 127.0.0.1 not localhost: localhost resolves ::1 first on Windows and
+    # ollama binds IPv4, so every probe would stall ~2s before falling back.
+    OLLAMA_BASE_URL: str = "http://127.0.0.1:11434"
     OLLAMA_MODEL: str = "mistral"
     OLLAMA_TIMEOUT_SEC: int = 20
     OLLAMA_PROBE_TIMEOUT_SEC: float = 1.0
@@ -53,6 +55,10 @@ class Settings(BaseSettings):
     # Consecutive provider failures before the circuit opens and the process
     # stops paying network latency on every query. 0 disables the breaker.
     LLM_FAILURE_THRESHOLD: int = 2
+
+    # How long an availability probe result stays fresh. Without this, /health
+    # re-probes the ollama port on every single request. 0 disables caching.
+    PROVIDER_PROBE_TTL_SEC: float = 30.0
 
     # ── Retrieval backend ─────────────────────────────────────────────────────
     # tfidf = scikit-learn TF-IDF (current MVP, ~30 MB)
