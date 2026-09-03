@@ -1,0 +1,35 @@
+# Secrets must never be baked into the image - they are passed at runtime
+# by docker-compose environment:, not copied in.
+.env
+*.key
+*.pem
+
+# VCS and tooling
+.git/
+.gitignore
+.gitattributes
+.github/
+
+# Caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Generated at runtime inside the container
+data/tfidf_index.pkl
+data/embeddings_index.faiss
+data/audit_logs/*.jsonl
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

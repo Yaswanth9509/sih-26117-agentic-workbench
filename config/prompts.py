@@ -3,7 +3,9 @@ All LLM prompt templates.
 Centralised so prompt changes never touch agent code.
 """
 
-# ── Groq / Cloud LLM prompts ──────────────────────────────────────────────────
+# ── Shared LLM prompts ────────────────────────────────────────────────────────
+# Used verbatim by every provider (ollama, gemini, groq) so their outputs stay
+# interchangeable. The rule-based engine produces the same schema in code.
 
 REASONING_SYSTEM_PROMPT: str = (
     "You are an industrial maintenance advisor for MRPL "
