@@ -10,6 +10,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
+from config.business_rules import SUPPORTED_EQUIPMENT
 from config.settings import settings
 from agents.query_understanding import QueryUnderstandingAgent
 from agents.retrieval_agent import RetrievalAgent
@@ -84,6 +85,19 @@ class AgentOrchestrator:
         if understanding["status"] not in ("SUCCESS",):
             return _stage_error("understanding", understanding)
 
+        # This system is scoped to exactly 5 known equipment items (maintenance
+        # decision support, not general business intelligence). "unknown" is
+        # QueryUnderstandingAgent's own signal that none matched - never a
+        # legitimate value for an in-scope query. Stop here, before business
+        # rules run: without this, an out-of-scope question (e.g. "what were
+        # our sales in Karnataka?") still gets a maintenance recommendation
+        # card with a misleading "APPROVED, 100% compliance" validation
+        # result, because the 5 business rules all vacuously pass on zeroed
+        # cost/downtime - reproduced live before this existed. Honest scope
+        # boundary beats a confident-looking wrong answer.
+        if understanding.get("equipment") == "unknown":
+            return self._out_of_scope_response(query, understanding, workflow_start)
+
         # ── Stage 2: Retrieve relevant documents ──────────────────────────────
         retrieval = await self._retrieval.execute(
             {
@@ -150,6 +164,92 @@ class AgentOrchestrator:
             f"time_ms={total_ms} status={decision.get('validation', {}).get('status')}"
         )
         return decision
+
+    def _out_of_scope_response(
+        self, query: str, understanding: dict[str, Any], workflow_start: datetime
+    ) -> dict[str, Any]:
+        """
+        Clean, honest response for a query that isn't about one of the 5
+        supported equipment items - skips retrieval/reasoning/validation
+        entirely rather than forcing it through machinery that doesn't apply.
+        Same top-level shape as a real DecisionAgent decision, so the API and
+        UI need no special-casing; not logged to the audit trail, since this
+        isn't a maintenance decision.
+        """
+        now = datetime.now(tz=timezone.utc)
+        decision_id = f"DEC-{now.strftime('%Y%m%d')}-{now.strftime('%H%M%S')}"
+        supported = ", ".join(SUPPORTED_EQUIPMENT)
+        total_ms = int((now - workflow_start).total_seconds() * 1000)
+
+        return {
+            "decision_id": decision_id,
+            "timestamp": now.isoformat(),
+            "user_query": query,
+            "equipment": "unknown",
+            "intent": understanding.get("intent", "unknown"),
+            "priority": "NORMAL",
+            "current_state": {},
+            "analysis": {
+                "maintenance_urgency": "N/A",
+                "cost_estimate_inr": 0.0,
+                "downtime_estimate_hours": 0.0,
+                "documents_consulted": 0,
+            },
+            "recommendation": {
+                "action": "Outside Supported Scope",
+                "detail": (
+                    "This system provides maintenance decision support for "
+                    f"5 specific pieces of equipment: {supported}. It does not "
+                    "have access to sales, financial, HR, or other business "
+                    "data. Try rephrasing your question to mention one of "
+                    "the equipment above."
+                ),
+                "timing": "N/A",
+                "risk_if_delayed": "N/A - not a maintenance decision",
+                "estimated_cost_inr": 0.0,
+                "estimated_downtime_hours": 0.0,
+            },
+            "validation": {
+                "status": "OUT_OF_SCOPE",
+                "compliance_score": 0,
+                "violations": [],
+                "warnings": [],
+                "escalations": [],
+                "rule_results": {
+                    "scope_check": {
+                        "status": "INFO",
+                        "message": (
+                            "No supported equipment identified in this "
+                            f"query. Supported: {supported}."
+                        ),
+                    }
+                },
+            },
+            "reasoning_chain": [
+                "Step 1: No equipment matched from the 5 supported items "
+                f"({supported}).",
+                "Step 2: This system answers maintenance questions about "
+                "those items only - it has no sales, financial, or other "
+                "business data to draw on.",
+                "Step 3: Rephrase the question naming one of the supported "
+                "equipment IDs to get a real recommendation.",
+            ],
+            "metadata": {
+                "overall_confidence": 1.0,
+                "reasoning_steps_count": 3,
+                "total_time_ms": total_ms,
+                "engine_used": "n/a",
+                "agents_executed": ["understanding"],
+                "agents_failed": [],
+            },
+            "audit_trail": {
+                "user_id": "n/a",
+                "request_timestamp": workflow_start.isoformat(),
+                "response_timestamp": now.isoformat(),
+                "decision_id": decision_id,
+            },
+            "status": "SUCCESS",
+        }
 
     def _reasoning_last_resort(self, understanding: dict[str, Any]) -> dict[str, Any]:
         """Compute a rule-based reasoning result directly, bypassing the

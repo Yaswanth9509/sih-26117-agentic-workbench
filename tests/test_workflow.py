@@ -130,3 +130,31 @@ class TestWorkflow:
         assert r["recommendation"]["estimated_cost_inr"] > 0
         assert isinstance(r["recommendation"]["estimated_cost_inr"], float)
         assert len(r["reasoning_chain"]) >= 3
+
+    def test_out_of_scope_query_does_not_get_a_fake_approval(self):
+        """
+        Regression, reproduced live: an out-of-scope question (no equipment
+        identified) used to run through all 5 business rules anyway. Every
+        rule vacuously passed on zeroed cost/downtime, so the response
+        looked like "APPROVED, 100% compliance, Monitor Equipment Status"
+        for a question the system had no data to answer - actively
+        misleading, especially for a non-expert user. Must now short-circuit
+        into an honest, clearly-labeled out-of-scope response instead.
+        """
+        r = self._run("What were our sales in Karnataka last quarter?")
+
+        assert r["status"] == "SUCCESS"
+        assert r["equipment"] == "unknown"
+        assert r["validation"]["status"] == "OUT_OF_SCOPE"
+        # The old bug's specific symptom: never a misleading full-marks pass.
+        assert r["validation"]["status"] != "APPROVED"
+        assert r["validation"]["compliance_score"] == 0
+        assert r["recommendation"]["action"] != "Monitor Equipment Status"
+        assert "reactor-4" in r["recommendation"]["detail"]
+
+    def test_in_scope_query_unaffected_by_scope_check(self):
+        """The scope short-circuit must not fire for a real, in-scope query."""
+        r = self._run("Reactor-4 pressure 4.2 bar, last service 6 months.")
+        assert r["equipment"] == "reactor-4"
+        assert r["validation"]["status"] != "OUT_OF_SCOPE"
+        assert "cost_check" in r["validation"]["rule_results"]

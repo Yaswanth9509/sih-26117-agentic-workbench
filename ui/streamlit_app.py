@@ -94,6 +94,7 @@ st.markdown(
   .rule-WARN { color: #f59e0b; font-weight: 600; }
   .rule-FAIL { color: #ef4444; font-weight: 600; }
   .rule-ESCALATE { color: #a855f7; font-weight: 700; }
+  .rule-INFO { color: #94a3b8; font-weight: 600; }
   h1, h2, h3 { color: #e2e8f0 !important; }
   .stTextArea textarea { background: #1e2537 !important; color: #e2e8f0 !important; }
   .stButton > button {
@@ -266,6 +267,7 @@ if analyze and query.strip():
             "safety_margin": "🛡️",
             "compliance": "📋",
             "historical": "📊",
+            "scope_check": "🔍",
         }
         for rule_key, rule_data in rule_results.items():
             status = rule_data.get("status", "PASS")
