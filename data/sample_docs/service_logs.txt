@@ -1,0 +1,30 @@
+SERVICE LOG - MRPL Refinery Unit Operations
+Generated: September 2026
+
+LOG ENTRY: Reactor-4 | Date: 2026-03-15 | Engineer: S. Kumar
+Performed scheduled 6-month maintenance on Reactor-4. Replaced gaskets and seals. Pressure tested to 5.0 bar - PASS. Catalyst bed inspected - minor fouling cleared. Temperature sensors calibrated. System returned to service at 14:30. Total downtime: 2.5 hours. Cost: Rs.34,500. Status: COMPLETED SUCCESSFULLY.
+
+LOG ENTRY: Compressor-B | Date: 2025-06-20 | Engineer: R. Pillai
+Annual maintenance on Compressor-B. Replaced bearings (2 sets). Lubrication system flushed and refilled. Vibration analysis - readings within normal range post-service. Pressure relief valve tested and calibrated. Motor insulation resistance checked: 850 MOhm (PASS). Total downtime: 3 hours. Cost: Rs.27,200. Status: COMPLETED SUCCESSFULLY.
+
+LOG ENTRY: Pump-A | Date: 2026-02-10 | Engineer: M. Shetty
+6-month service on Pump-A centrifugal pump. Impeller wear within tolerance (8% wear). Mechanical seal replaced. Shaft alignment checked and corrected (0.05mm deviation corrected to 0.01mm). Cavitation test: no issues detected. Total downtime: 1.5 hours. Cost: Rs.14,800. Status: COMPLETED SUCCESSFULLY.
+
+LOG ENTRY: Separator-D | Date: 2024-06-15 | Engineer: P. Nair
+Biennial maintenance on Separator-D. Internal inspection revealed minor corrosion on inlet nozzle - treated with epoxy coating. Demister pads replaced. Level control sensors recalibrated. Pressure safety valve tested: opens at 12.2 bar (within spec). Total downtime: 5.5 hours. Cost: Rs.53,000. Status: COMPLETED WITH MINOR FINDINGS.
+
+LOG ENTRY: Reactor-4 | Date: 2025-09-10 | Engineer: S. Kumar
+Emergency inspection triggered by pressure spike to 4.8 bar (96% of max). Root cause: partial blockage in feed line. Blockage cleared. Pressure normalized to 4.1 bar within 2 hours. No damage to reactor vessel. Preventive: increased monitoring frequency for 30 days. Cost: Rs.8,000. Status: EMERGENCY - RESOLVED.
+
+LOG ENTRY: Compressor-B | Date: 2025-12-01 | Engineer: R. Pillai
+Unscheduled maintenance - abnormal noise reported. Found: loose impeller retaining nut (vibration-induced). Nut re-torqued to spec. Vibration levels returned to normal (2.1 mm/s). No other issues found. Downtime: 4 hours. Cost: Rs.5,500. Status: RESOLVED.
+
+LOG ENTRY: Pump-A | Date: 2025-08-05 | Engineer: M. Shetty
+Routine 6-month service. All parameters nominal. Seal showing 70% remaining life. Bearing temperature: 42C (normal). No corrective action needed. Total downtime: 1.25 hours. Cost: Rs.13,200. Status: COMPLETED - NO ISSUES.
+
+HISTORICAL FAILURE ANALYSIS SUMMARY:
+- Reactor-4: 1 pressure exceedance in 8 services (12.5% incident rate)
+- Compressor-B: 1 unscheduled stop in 5 services (20% incident rate)
+- Pump-A: 0 failures in 10 services (0% incident rate) - most reliable equipment
+- Separator-D: Corrosion found in last inspection - monitor closely
+- Heat-Exchanger-C: No failures since installation (15 years - excellent record)

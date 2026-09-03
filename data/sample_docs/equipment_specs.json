@@ -1,0 +1,109 @@
+{
+  "equipment": [
+    {
+      "id": "reactor-4",
+      "name": "Reactor-4",
+      "type": "reactor",
+      "capacity_liters": 500000,
+      "material": "stainless_steel_316",
+      "design_pressure_bar": 5.0,
+      "design_temperature_celsius": 150,
+      "safe_operating_range_bar": [
+        3.5,
+        5.0
+      ],
+      "max_safe_temperature_celsius": 150,
+      "installed_date": "2018-03-15",
+      "designed_lifespan_years": 10,
+      "maintenance_interval_months": 6,
+      "typical_service_cost_inr": 35000,
+      "typical_service_downtime_hours": 2.5,
+      "last_major_inspection": "2026-03-15",
+      "next_scheduled_service": "2026-09-15"
+    },
+    {
+      "id": "compressor-b",
+      "name": "Compressor-B",
+      "type": "compressor",
+      "capacity_ton_per_hour": 150,
+      "material": "cast_iron",
+      "design_pressure_bar": 8.0,
+      "design_temperature_celsius": 80,
+      "safe_operating_range_bar": [
+        6.0,
+        8.0
+      ],
+      "max_safe_temperature_celsius": 80,
+      "installed_date": "2019-06-20",
+      "designed_lifespan_years": 15,
+      "maintenance_interval_months": 12,
+      "typical_service_cost_inr": 28000,
+      "typical_service_downtime_hours": 3.0,
+      "last_major_inspection": "2025-06-20",
+      "next_scheduled_service": "2026-06-20"
+    },
+    {
+      "id": "pump-a",
+      "name": "Pump-A",
+      "type": "centrifugal_pump",
+      "capacity_liters_per_minute": 2000,
+      "material": "duplex_stainless_steel",
+      "design_pressure_bar": 6.0,
+      "design_temperature_celsius": 120,
+      "safe_operating_range_bar": [
+        4.0,
+        6.0
+      ],
+      "max_safe_temperature_celsius": 120,
+      "installed_date": "2020-02-10",
+      "designed_lifespan_years": 12,
+      "maintenance_interval_months": 6,
+      "typical_service_cost_inr": 15000,
+      "typical_service_downtime_hours": 1.5,
+      "last_major_inspection": "2026-02-10",
+      "next_scheduled_service": "2026-08-10"
+    },
+    {
+      "id": "exchanger-c",
+      "name": "Heat-Exchanger-C",
+      "type": "shell_and_tube_heat_exchanger",
+      "capacity_mw": 12,
+      "material": "titanium_grade_2",
+      "design_pressure_bar": 10.0,
+      "design_temperature_celsius": 200,
+      "safe_operating_range_bar": [
+        7.0,
+        10.0
+      ],
+      "max_safe_temperature_celsius": 200,
+      "installed_date": "2017-12-01",
+      "designed_lifespan_years": 20,
+      "maintenance_interval_months": 12,
+      "typical_service_cost_inr": 42000,
+      "typical_service_downtime_hours": 4.0,
+      "last_major_inspection": "2025-12-01",
+      "next_scheduled_service": "2026-12-01"
+    },
+    {
+      "id": "separator-d",
+      "name": "Separator-D",
+      "type": "three_phase_separator",
+      "capacity_barrels_per_day": 10000,
+      "material": "carbon_steel_coated",
+      "design_pressure_bar": 12.0,
+      "design_temperature_celsius": 90,
+      "safe_operating_range_bar": [
+        8.0,
+        12.0
+      ],
+      "max_safe_temperature_celsius": 90,
+      "installed_date": "2016-06-15",
+      "designed_lifespan_years": 25,
+      "maintenance_interval_months": 24,
+      "typical_service_cost_inr": 55000,
+      "typical_service_downtime_hours": 5.5,
+      "last_major_inspection": "2024-06-15",
+      "next_scheduled_service": "2026-06-15"
+    }
+  ]
+}

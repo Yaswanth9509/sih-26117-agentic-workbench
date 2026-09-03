@@ -1,0 +1,74 @@
+{
+  "version": "2.1",
+  "last_updated": "2026-01-01",
+  "authority": "MRPL Safety & Environment Department",
+  "safety_rules": [
+    {
+      "rule_id": "PRESSURE_LIMIT",
+      "description": "Equipment operating pressure must not exceed 95% of design pressure",
+      "applies_to": [
+        "reactor-4",
+        "compressor-b",
+        "pump-a",
+        "separator-d"
+      ],
+      "threshold_percent_of_max": 95,
+      "action_if_violated": "IMMEDIATE_ESCALATION",
+      "notification_level": "CRITICAL",
+      "response_time_minutes": 15
+    },
+    {
+      "rule_id": "TEMPERATURE_LIMIT",
+      "description": "Operating temperature must not exceed 95% of max safe temperature",
+      "applies_to": [
+        "all"
+      ],
+      "threshold_percent_of_max": 95,
+      "action_if_violated": "IMMEDIATE_ESCALATION",
+      "notification_level": "CRITICAL",
+      "response_time_minutes": 15
+    },
+    {
+      "rule_id": "MAINTENANCE_INTERVAL",
+      "description": "Equipment must receive scheduled maintenance within grace period",
+      "applies_to": [
+        "all"
+      ],
+      "grace_period_days": 14,
+      "action_if_violated": "ESCALATION",
+      "notification_level": "HIGH",
+      "response_time_hours": 48
+    },
+    {
+      "rule_id": "DOWNTIME_LIMIT",
+      "description": "Planned maintenance downtime cannot exceed limit without approval",
+      "applies_to": [
+        "all"
+      ],
+      "max_downtime_hours": 4,
+      "exception_process": "Written approval from Unit Superintendent required",
+      "action_if_violated": "WARNING",
+      "notification_level": "MEDIUM"
+    },
+    {
+      "rule_id": "BUDGET_APPROVAL",
+      "description": "Maintenance costs above threshold require prior budget approval",
+      "cost_threshold_inr": 50000,
+      "approval_authority": "Plant Manager",
+      "action_if_violated": "HOLD",
+      "notification_level": "HIGH"
+    },
+    {
+      "rule_id": "VENDOR_CERTIFICATION",
+      "description": "All maintenance work must be performed by certified vendors only",
+      "certification_required": "MRPL_VENDOR_CLASS_A_or_B",
+      "action_if_violated": "IMMEDIATE_HOLD",
+      "notification_level": "CRITICAL"
+    }
+  ],
+  "emergency_contacts": {
+    "safety_officer": "+91-824-2270400",
+    "plant_manager": "+91-824-2270401",
+    "fire_station": "+91-824-2270402"
+  }
+}

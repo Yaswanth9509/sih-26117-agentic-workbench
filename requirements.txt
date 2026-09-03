@@ -1,0 +1,50 @@
+# MRPL Agentic Workbench - Python Dependencies
+# All versions pinned exactly for reproducible builds.
+# Install size: ~270 MB. No PyTorch, no FAISS, no local model weights.
+#
+# The on-premise stack (FAISS + sentence-transformers) is deliberately NOT
+# pinned here - it adds ~2.5 GB. See docs/MIGRATION.md for the swap.
+
+# ── Web API ───────────────────────────────────────────────────────────────────
+fastapi==0.141.1
+uvicorn==0.52.4
+pydantic==2.13.4
+pydantic-settings==2.15.0
+
+# ── UI ────────────────────────────────────────────────────────────────────────
+streamlit==1.62.0
+
+# ── Data Processing ───────────────────────────────────────────────────────────
+pandas==3.0.5
+numpy==2.5.2
+openpyxl==3.1.5
+
+# ── Retrieval: TF-IDF backend (replaces FAISS + PyTorch, saves ~2.5 GB) ───────
+scikit-learn==1.9.0
+
+# ── LLM providers ─────────────────────────────────────────────────────────────
+# ollama (local Mistral-7B) and Gemini are called over plain REST via httpx.
+# Only Groq needs a client library.
+groq==1.6.0
+
+# ── HTTP & async I/O ──────────────────────────────────────────────────────────
+httpx==0.28.1
+requests==2.34.2
+aiofiles==25.1.0
+aiohttp==3.14.3
+
+# ── Utilities ─────────────────────────────────────────────────────────────────
+python-dotenv==1.0.0
+PyYAML==6.0.3
+jsonschema==4.26.0
+
+# ── Logging ───────────────────────────────────────────────────────────────────
+python-json-logger==4.2.0
+
+# ── Testing ───────────────────────────────────────────────────────────────────
+pytest==9.1.1
+pytest-asyncio==1.4.0
+
+# ── Dev tooling ───────────────────────────────────────────────────────────────
+black==26.5.1
+mypy==2.3.1

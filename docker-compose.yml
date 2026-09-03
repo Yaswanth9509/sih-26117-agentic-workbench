@@ -1,0 +1,27 @@
+services:
+  workbench:
+    build: .
+    container_name: mrpl-workbench
+    ports:
+      - "8000:8000" # FastAPI
+      - "8501:8501" # Streamlit
+    volumes:
+      - ./data:/app/data # persist audit logs + sample docs
+    environment:
+      # auto = prefer local ollama, then any configured cloud key,
+      # then the offline rule-based engine. Works with none of them set.
+      - LLM_PROVIDER=${LLM_PROVIDER:-auto}
+      # Optional cloud keys. Leave blank for a fully offline container.
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      # Reach an ollama daemon running on the host, not in this container.
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      - LOG_LEVEL=INFO
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

@@ -1,0 +1,98 @@
+"""
+Centralized configuration for MRPL Agentic Workbench.
+All values read from environment variables or .env file.
+No hardcoded secrets anywhere.
+"""
+
+from __future__ import annotations
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    """Application settings - loaded from environment / .env file."""
+
+    model_config = SettingsConfigDict(
+        env_file=".env", case_sensitive=True, extra="ignore"
+    )
+
+    # ── LLM provider selection ────────────────────────────────────────────────
+    # auto      = probe in order: ollama -> gemini -> groq -> rule-based
+    # ollama    = local Mistral-7B (sovereign / fully offline; target stack)
+    # gemini    = Google Gemini REST API (cloud)
+    # groq      = Groq API (cloud)
+    # rule-based = deterministic offline engine, no network at all
+    LLM_PROVIDER: str = "auto"
+
+    # ── LLM: ollama (local Mistral-7B) ────────────────────────────────────────
+    OLLAMA_BASE_URL: str = "http://localhost:11434"
+    OLLAMA_MODEL: str = "mistral"
+    OLLAMA_TIMEOUT_SEC: int = 20
+    OLLAMA_PROBE_TIMEOUT_SEC: float = 1.0
+
+    # ── LLM: Google Gemini ────────────────────────────────────────────────────
+    GEMINI_API_KEY: str = ""  # Set in .env - blank = provider unavailable
+    GEMINI_MODEL: str = "gemini-flash-lite-latest"
+    GEMINI_BASE_URL: str = "https://generativelanguage.googleapis.com/v1beta"
+    GEMINI_MAX_TOKENS: int = 800
+    GEMINI_TEMPERATURE: float = 0.3
+    # Must stay below AGENT_TIMEOUT_SEC so the engine's own rule-based
+    # fallback runs instead of the agent being killed mid-call.
+    GEMINI_TIMEOUT_SEC: int = 5
+
+    # ── LLM: Groq ─────────────────────────────────────────────────────────────
+    GROQ_API_KEY: str = ""  # Set in .env - blank = provider unavailable
+    GROQ_MODEL: str = "llama-3.1-8b-instant"
+    GROQ_MAX_TOKENS: int = 600
+    GROQ_TEMPERATURE: float = 0.3
+    GROQ_TIMEOUT_SEC: int = 8
+
+    # ── LLM: fallback label (for audit logs) ──────────────────────────────────
+    FALLBACK_ENGINE: str = "rule-based"
+
+    # Consecutive provider failures before the circuit opens and the process
+    # stops paying network latency on every query. 0 disables the breaker.
+    LLM_FAILURE_THRESHOLD: int = 2
+
+    # ── Retrieval backend ─────────────────────────────────────────────────────
+    # tfidf = scikit-learn TF-IDF (current MVP, ~30 MB)
+    # faiss = FAISS + sentence-transformers (target stack, see docs/MIGRATION.md)
+    VECTOR_BACKEND: str = "tfidf"
+    VECTOR_STORE_PATH: str = "data/tfidf_index.pkl"
+    VECTOR_SEARCH_TOP_K: int = 5
+    TFIDF_MAX_FEATURES: int = 5000
+    EMBEDDING_MODEL: str = "all-MiniLM-L6-v2"  # used by the faiss backend only
+
+    # ── API ───────────────────────────────────────────────────────────────────
+    API_PORT: int = 8000
+    API_HOST: str = "0.0.0.0"
+    API_TITLE: str = "MRPL Agentic Workbench"
+    API_VERSION: str = "1.0.0"
+
+    # ── Rate Limiting ─────────────────────────────────────────────────────────
+    RATE_LIMIT_PER_MINUTE: int = 10
+    RATE_LIMIT_PER_HOUR: int = 100
+
+    # ── Security ──────────────────────────────────────────────────────────────
+    MAX_QUERY_LENGTH: int = 2000
+    INPUT_VALIDATION_ENABLED: bool = True
+
+    # ── Timeouts ──────────────────────────────────────────────────────────────
+    AGENT_TIMEOUT_SEC: int = 8
+    WORKFLOW_TIMEOUT_SEC: int = 30
+    REQUEST_TIMEOUT_SEC: int = 35
+
+    # ── Logging ───────────────────────────────────────────────────────────────
+    LOG_LEVEL: str = "INFO"
+    AUDIT_LOG_PATH: str = "data/audit_logs/decisions.jsonl"
+
+    # ── Business Rules ────────────────────────────────────────────────────────
+    MAX_RECOMMENDATION_COST_INR: float = 100_000
+    MAX_DOWNTIME_HOURS: float = 4.0
+    SAFETY_MARGIN_PERCENT: float = 5.0
+
+    # ── Data Paths ────────────────────────────────────────────────────────────
+    SAMPLE_DOCS_PATH: str = "data/sample_docs"
+
+
+settings = Settings()
