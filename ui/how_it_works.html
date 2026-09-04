@@ -180,6 +180,105 @@
   .sovereign-badge .tx { font-size: 0.9rem; color: #bdf5cf; line-height: 1.5; }
   .sovereign-badge b { color: var(--green); }
 
+  /* ── Security gate + timeout note (pipeline extras) ───────────────── */
+  .gate {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 26px;
+    padding: 12px 16px; border-radius: 12px;
+    border: 1px solid rgba(168,85,247,0.28); background: rgba(168,85,247,0.07);
+  }
+  .gate .ic { font-size: 1.25rem; }
+  .gate .tx { font-size: 0.87rem; color: #ddd0f5; line-height: 1.55; }
+  .gate b { color: var(--purple); }
+
+  /* ── Fallback chain ───────────────────────────────────────────────── */
+  .chain { margin-top: 8px; }
+  .tier {
+    display: flex; align-items: flex-start; gap: 16px; padding: 16px 18px;
+    border-radius: 14px; border: 1px solid var(--line);
+    background: linear-gradient(150deg, var(--card1), var(--card1b));
+  }
+  .tier .badge {
+    flex-shrink: 0; width: 46px; height: 46px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center; font-size: 1.3rem;
+  }
+  .tier.t1 .badge { background: rgba(34,197,94,0.14); }
+  .tier.t2 .badge { background: rgba(245,158,11,0.14); }
+  .tier.t3 .badge { background: rgba(59,130,246,0.14); }
+  .tier h4 { margin: 0 0 4px; font-size: 1rem; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .tier p { margin: 0; font-size: 0.85rem; color: var(--muted); line-height: 1.55; }
+  .tier .chip {
+    font-size: 0.66rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 3px 8px; border-radius: 999px;
+  }
+  .tier.t1 .chip { color: var(--green); background: rgba(34,197,94,0.15); }
+  .tier.t2 .chip { color: var(--amber); background: rgba(245,158,11,0.15); }
+  .tier.t3 .chip { color: #8fb8ff; background: rgba(59,130,246,0.15); }
+  .chain-arrow {
+    text-align: center; color: var(--dim); font-size: 1.1rem; padding: 6px 0;
+    letter-spacing: 0.2em;
+  }
+  .breaker {
+    margin-top: 20px; padding: 16px 18px; border-radius: 12px;
+    border: 1px dashed rgba(239,68,68,0.35); background: rgba(239,68,68,0.05);
+    font-size: 0.87rem; color: #ffd4d4; line-height: 1.6;
+  }
+  .breaker b { color: var(--red); }
+  .guarantee {
+    margin-top: 22px; padding: 18px 20px; border-radius: 14px; text-align: center;
+    border: 1px solid rgba(34,197,94,0.3); background: rgba(34,197,94,0.08);
+    font-size: 1rem; font-weight: 700; color: #bdf5cf;
+  }
+
+  /* ── Data stores ──────────────────────────────────────────────────── */
+  .stores { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 8px; }
+  @media (max-width: 760px) { .stores { grid-template-columns: 1fr; } }
+  .store {
+    border-radius: 14px; padding: 18px 16px; border: 1px solid var(--line);
+    background: linear-gradient(160deg, var(--card2), var(--card2b));
+  }
+  .store .ic { font-size: 1.5rem; display: block; margin-bottom: 8px; }
+  .store h4 { margin: 0 0 6px; font-size: 0.95rem; }
+  .store p { margin: 0 0 10px; font-size: 0.8rem; color: var(--muted); line-height: 1.55; }
+  .store .file {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.72rem; color: #8fb8ff; background: rgba(59,130,246,0.09);
+    padding: 4px 8px; border-radius: 6px; display: inline-block; word-break: break-all;
+  }
+  .no-db {
+    margin-top: 22px; padding: 16px 18px; border-radius: 12px;
+    border: 1px solid rgba(59,130,246,0.25); background: rgba(59,130,246,0.07);
+    font-size: 0.9rem; color: #cfe0ff; line-height: 1.6;
+  }
+  .no-db b { color: #8fb8ff; }
+
+  /* ── Audit log code block ─────────────────────────────────────────── */
+  .logblock {
+    margin-top: 8px; border-radius: 14px; border: 1px solid var(--line);
+    background: #12161f; overflow: hidden;
+  }
+  .logblock .bar {
+    display: flex; align-items: center; gap: 8px; padding: 9px 14px;
+    background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--line);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.74rem; color: var(--dim);
+  }
+  .logblock .bar .dot { width: 9px; height: 9px; border-radius: 50%; }
+  .logblock pre {
+    margin: 0; padding: 16px 18px; overflow-x: auto;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.76rem; line-height: 1.75; color: #c8d6e5;
+  }
+  .k { color: #8fb8ff; }
+  .s { color: #86efac; }
+  .n { color: #fbbf24; }
+  .audit-points { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 16px; }
+  @media (max-width: 760px) { .audit-points { grid-template-columns: 1fr; } }
+  .apoint {
+    padding: 14px 16px; border-radius: 12px; border: 1px solid var(--line);
+    font-size: 0.82rem; color: var(--muted); line-height: 1.55;
+  }
+  .apoint b { color: var(--text); display: block; margin-bottom: 3px; font-size: 0.88rem; }
+
   /* ── Applications grid ────────────────────────────────────────────── */
   .apps-grid {
     display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 8px;
@@ -330,6 +429,13 @@
       steps &mdash; each one doing a single job well. No step trusts the previous one blindly.
     </p>
 
+    <div class="gate reveal d1">
+      <div class="ic">🛡️</div>
+      <div class="tx"><b>Before any of it runs:</b> the question is screened for
+        malicious input and each engineer is rate-limited. Nothing reaches the
+        AI until it has passed that gate.</div>
+    </div>
+
     <div class="pipeline">
       <div class="pipeline-track" id="pipeline">
         <div class="node" data-i="0">
@@ -364,6 +470,13 @@
       </div>
     </div>
 
+    <div class="gate reveal" style="margin-top:26px;margin-bottom:0;border-color:rgba(59,130,246,0.25);background:rgba(59,130,246,0.06)">
+      <div class="ic">⏱️</div>
+      <div class="tx" style="color:#cfe0ff"><b style="color:#8fb8ff">Every step is
+        independently time-limited.</b> If any one stage is slow, it is cut off and
+        handled &mdash; a single slow step can never hang the engineer's request.</div>
+    </div>
+
     <div class="sovereign-badge reveal">
       <div class="ic">🔒</div>
       <div class="tx"><b>Runs entirely on local hardware.</b> No company data ever has to leave
@@ -371,9 +484,143 @@
     </div>
   </section>
 
-  <!-- 4. APPLICATIONS -->
+  <!-- 4. FALLBACK CHAIN -->
   <section>
-    <div class="eyebrow" style="color:var(--green)"><span class="num">4</span>WHERE ELSE THIS APPLIES</div>
+    <div class="eyebrow" style="color:var(--green)"><span class="num">4</span>WHAT IF THE AI FAILS?</div>
+    <h2 class="reveal">It never comes back empty-handed</h2>
+    <p class="lead reveal d1">
+      Step 3 is the only step that uses an AI model &mdash; and AI models can be slow,
+      overloaded, or simply switched off. So the system has a chain of backups. It tries
+      each in order and uses the first one that answers.
+    </p>
+
+    <div class="chain">
+      <div class="tier t1 reveal d1">
+        <div class="badge">🖥️</div>
+        <div>
+          <h4>Mistral, running on-site <span class="chip">preferred</span></h4>
+          <p>A full AI model running on the plant's own GPU. Nothing leaves the
+             building. This is the intended production setup.</p>
+        </div>
+      </div>
+      <div class="chain-arrow reveal">↓ if unavailable or too slow</div>
+      <div class="tier t2 reveal">
+        <div class="badge">☁️</div>
+        <div>
+          <h4>Cloud AI <span class="chip">optional</span></h4>
+          <p>Only used if someone deliberately configures a key &mdash; a convenience
+             for demos on a laptop with no GPU. Every decision records that cloud
+             was used, so it is never ambiguous.</p>
+        </div>
+      </div>
+      <div class="chain-arrow reveal">↓ if unavailable or too slow</div>
+      <div class="tier t3 reveal">
+        <div class="badge">⚙️</div>
+        <div>
+          <h4>Rule-Based Engine <span class="chip">always works</span></h4>
+          <p>A deterministic engine written in plain code &mdash; no AI, no network, no
+             GPU. It cannot fail, cannot be slow, and cannot be unavailable. This is
+             the floor beneath everything.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="breaker reveal">
+      🔌 <b>Circuit breaker:</b> if a provider fails repeatedly, the system stops
+      waiting on it entirely and serves answers instantly from the engine below it &mdash;
+      rather than making every engineer wait out the same timeout. It automatically
+      retries after a short cooldown, so a temporary problem heals itself with nobody
+      having to restart anything.
+    </div>
+
+    <div class="guarantee reveal">
+      ✅ The result: a request can never fail. There is always a valid, validated answer.
+    </div>
+  </section>
+
+  <!-- 5. WHERE THE DATA LIVES -->
+  <section>
+    <div class="eyebrow" style="color:var(--blue)"><span class="num">5</span>WHERE THE DATA LIVES</div>
+    <h2 class="reveal">Three simple stores &mdash; and deliberately no database</h2>
+    <p class="lead reveal d1">
+      A common question: what database is behind this? The honest answer is
+      <i>none</i> &mdash; and that's a design decision, not a shortcut.
+    </p>
+    <div class="stores">
+      <div class="store reveal d1">
+        <span class="ic">📄</span>
+        <h4>Equipment records</h4>
+        <p>The source of truth: specifications, service schedules, past repair
+           logs, safety limits and costs. Plain files an engineer can open and read.</p>
+        <span class="file">data/sample_docs/</span>
+      </div>
+      <div class="store reveal d2">
+        <span class="ic">🔍</span>
+        <h4>Search index</h4>
+        <p>So the system can find the right facts by meaning rather than exact
+           wording. A lightweight local index, rebuilt from the records in seconds
+           &mdash; not a separate database server to run and maintain.</p>
+        <span class="file">data/tfidf_index.pkl</span>
+      </div>
+      <div class="store reveal d3">
+        <span class="ic">🧾</span>
+        <h4>Audit trail</h4>
+        <p>Every decision ever made, one per line, only ever added to &mdash; never
+           edited, never overwritten, never deleted.</p>
+        <span class="file">data/audit_logs/decisions.jsonl</span>
+      </div>
+    </div>
+    <div class="no-db reveal">
+      <b>Why no SQL database?</b> Nothing here needs one. There are no user accounts,
+      no transactions, no concurrent writers competing over rows. Avoiding a database
+      means there is no extra server to install, secure, back up, or keep running
+      inside a refinery's network &mdash; and every piece of data stays a file that can
+      be inspected, copied, or handed to an auditor directly.
+    </div>
+  </section>
+
+  <!-- 6. AUDIT TRAIL -->
+  <section>
+    <div class="eyebrow" style="color:var(--purple)"><span class="num">6</span>THE AUDIT TRAIL</div>
+    <h2 class="reveal">Every decision leaves a permanent record</h2>
+    <p class="lead reveal d1">
+      The moment a recommendation is produced, it is written to a log that is only
+      ever appended to. This is what turns "the AI said so" into something an auditor
+      or regulator can actually verify months later.
+    </p>
+    <div class="logblock reveal d1">
+      <div class="bar">
+        <span class="dot" style="background:#ef4444"></span>
+        <span class="dot" style="background:#f59e0b"></span>
+        <span class="dot" style="background:#22c55e"></span>
+        <span style="margin-left:6px">decisions.jsonl &mdash; one line per decision</span>
+      </div>
+<pre>{
+  <span class="k">"timestamp"</span>:         <span class="s">"2026-09-04T07:15:44Z"</span>,
+  <span class="k">"decision_id"</span>:       <span class="s">"DEC-20260904-071543"</span>,
+  <span class="k">"user_id"</span>:           <span class="s">"engineer_1"</span>,
+  <span class="k">"equipment"</span>:          <span class="s">"reactor-4"</span>,
+  <span class="k">"recommendation"</span>:     <span class="s">"Schedule Maintenance"</span>,
+  <span class="k">"validation_status"</span>:  <span class="s">"APPROVED"</span>,
+  <span class="k">"compliance_score"</span>:   <span class="n">100</span>,
+  <span class="k">"engine_used"</span>:        <span class="s">"ollama"</span>,
+  <span class="k">"total_time_ms"</span>:      <span class="n">6089</span>
+}</pre>
+    </div>
+    <div class="audit-points">
+      <div class="apoint reveal d1"><b>Append-only</b>Entries are never edited or
+        removed, so the history cannot be quietly rewritten after the fact.</div>
+      <div class="apoint reveal d2"><b>Names the engine</b>Each entry records which
+        engine produced it &mdash; local AI, cloud, or rule-based &mdash; so accountability
+        is never ambiguous.</div>
+      <div class="apoint reveal d3"><b>Answers "why?"</b>Months later, anyone can look
+        up exactly what was recommended, on what basis, and whether it passed every check.</div>
+    </div>
+  </section>
+
+  <!-- 7. APPLICATIONS -->
+  <section>
+    <div class="eyebrow" style="color:var(--green)"><span class="num">7</span>WHERE ELSE THIS APPLIES</div>
     <h2 class="reveal">The same pattern works anywhere a decision needs to be fast <i>and</i> defensible</h2>
     <p class="lead reveal d1">
       This isn't a one-refinery tool. It's a general pattern: ground every answer in real
@@ -396,7 +643,7 @@
 
   <!-- 5. WHY IT PAYS FOR ITSELF -->
   <section>
-    <div class="eyebrow" style="color:var(--green)"><span class="num">5</span>WHY IT PAYS FOR ITSELF</div>
+    <div class="eyebrow" style="color:var(--green)"><span class="num">8</span>WHY IT PAYS FOR ITSELF</div>
     <h2 class="reveal">The cost of a wrong call is enormous. The cost of running this isn't.</h2>
     <p class="lead reveal d1">
       Three simple economic ideas explain why a system like this is worth building, even before
