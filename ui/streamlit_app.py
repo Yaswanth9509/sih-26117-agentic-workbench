@@ -170,7 +170,14 @@ if st.session_state["show_how_it_works"]:
     if st.button("← Back to the Workbench", type="primary"):
         st.session_state["show_how_it_works"] = False
         st.rerun()
-    st.iframe(HOW_IT_WORKS_PATH, height="content")
+    # Fixed height with the explainer scrolling INSIDE it - deliberately not
+    # height="content". An auto-sized iframe is as tall as its content, so it
+    # never scrolls internally, which breaks three things at once: the page's
+    # own "Back to top" button (window.scrollTo on a window with no scrollbar
+    # does nothing), the scroll-progress rail (scrollTop is permanently 0),
+    # and the height itself (measured once at load, so a different window
+    # width reflows the content and leaves dead space below it).
+    st.iframe(HOW_IT_WORKS_PATH, height=760)
     st.stop()
 
 # ── Query input ───────────────────────────────────────────────────────────────
