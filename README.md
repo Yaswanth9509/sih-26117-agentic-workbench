@@ -247,7 +247,7 @@ sih-26117-agentic-workbench/
 ## SIH Hackathon: Problem Statement 26117
 
 Developed for Smart India Hackathon 2026.
-Team: MRPL On-Premise AI Workbench
+Team: Edgerunners
 Constraint: decision-making must be able to run entirely on MRPL's own
 infrastructure — see [docs/MIGRATION.md](docs/MIGRATION.md) for how the MVP
 maps onto that deployment.
