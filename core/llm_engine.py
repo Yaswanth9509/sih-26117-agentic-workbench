@@ -71,29 +71,41 @@ class RuleBasedEngine:
     """
     Deterministic reasoning engine that mimics LLM output format.
     Produces structured JSON identical to what Groq would return.
+
+    Cost, downtime, and the maintenance interval are read from the matching
+    equipment_specs.json record in context_docs, not a hardcoded per-equipment
+    table. Previously they were: every query about the same equipment - "on
+    schedule, 4.2 bar" or "badly overdue, 4.9 bar" alike - produced the exact
+    same Rs.35,000 figure, because that flat lookup was the only place either
+    this engine or a real LLM (grounded in the same document) ever got a
+    number from. Now both routine and urgent figures live in the retrieved
+    document itself, so a genuinely different query produces a genuinely
+    different, still-explainable answer - see generate_sample_data.py's
+    SEVERITY_POLICY_NOTE for the rule this applies.
     """
 
-    COST_MAP: dict[str, int] = {
-        "reactor-4": 35000,
-        "compressor-b": 28000,
-        "pump-a": 15000,
-        "exchanger-c": 42000,
-        "separator-d": 55000,
-    }
-    DOWNTIME_MAP: dict[str, float] = {
-        "reactor-4": 2.5,
-        "compressor-b": 3.0,
-        "pump-a": 1.5,
-        "exchanger-c": 4.0,
-        "separator-d": 5.5,
-    }
-    INTERVAL_MAP: dict[str, int] = {
-        "reactor-4": 6,
-        "compressor-b": 12,
-        "pump-a": 6,
-        "exchanger-c": 12,
-        "separator-d": 24,
-    }
+    # Used only if retrieval didn't surface an equipment_specs record for
+    # this equipment - should not happen in normal operation, since the
+    # search query always includes the equipment ID as literal text.
+    _FALLBACK_COST_INR = 30000.0
+    _FALLBACK_DOWNTIME_HOURS = 2.0
+    _FALLBACK_INTERVAL_MONTHS = 6.0
+    _FALLBACK_URGENT_COST_MULTIPLIER = 1.35
+    _FALLBACK_URGENT_DOWNTIME_MULTIPLIER = 1.6
+
+    @staticmethod
+    def _find_equipment_doc(
+        eq: str, context_docs: list[dict[str, Any]]
+    ) -> dict[str, Any] | None:
+        """The retrieved equipment_specs.json record for this equipment, if
+        retrieval surfaced one among the (usually top-3) context documents."""
+        for doc in context_docs:
+            if (
+                str(doc.get("id", "")).lower() == eq
+                and "routine_service_cost_inr" in doc
+            ):
+                return doc
+        return None
 
     def generate(
         self,
@@ -106,9 +118,29 @@ class RuleBasedEngine:
         """Generate a rule-based recommendation matching Groq JSON schema."""
 
         eq = equipment.lower()
-        cost = self.COST_MAP.get(eq, 30000)
-        downtime = self.DOWNTIME_MAP.get(eq, 2.0)
-        interval = self.INTERVAL_MAP.get(eq, 6)
+        spec = self._find_equipment_doc(eq, context_docs)
+
+        def _spec_float(key: str, default: float) -> float:
+            if spec is None:
+                return default
+            try:
+                return float(spec.get(key, default))
+            except (TypeError, ValueError):
+                return default
+
+        base_cost = _spec_float("routine_service_cost_inr", self._FALLBACK_COST_INR)
+        base_downtime = _spec_float(
+            "routine_service_downtime_hours", self._FALLBACK_DOWNTIME_HOURS
+        )
+        cost_multiplier = _spec_float(
+            "urgent_cost_multiplier", self._FALLBACK_URGENT_COST_MULTIPLIER
+        )
+        downtime_multiplier = _spec_float(
+            "urgent_downtime_multiplier", self._FALLBACK_URGENT_DOWNTIME_MULTIPLIER
+        )
+        interval = int(
+            _spec_float("maintenance_interval_months", self._FALLBACK_INTERVAL_MONTHS)
+        )
         budget = constraints.get("budget_inr", 100000)
 
         pressure = current_state.get("pressure_bar")
@@ -119,24 +151,25 @@ class RuleBasedEngine:
         confidence = 0.85
 
         # ── Pressure analysis ────────────────────────────────────────────────
+        pressure_pct: float | None = None
         if pressure is not None:
             safe_max = 5.0 if "reactor" in eq else 8.0 if "compressor" in eq else 6.0
-            pct = round(pressure / safe_max * 100, 1)
-            if pct > 95:
+            pressure_pct = round(pressure / safe_max * 100, 1)
+            if pressure_pct > 95:
                 reasoning.append(
-                    f"Step 1: CRITICAL - Pressure {pressure} bar is {pct}% of max safe "
+                    f"Step 1: CRITICAL - Pressure {pressure} bar is {pressure_pct}% of max safe "
                     f"value ({safe_max} bar). Immediate action required."
                 )
                 confidence = 0.97
-            elif pct > 85:
+            elif pressure_pct > 85:
                 reasoning.append(
-                    f"Step 1: WARNING - Pressure {pressure} bar is {pct}% of max safe "
+                    f"Step 1: WARNING - Pressure {pressure} bar is {pressure_pct}% of max safe "
                     f"value ({safe_max} bar). Plan maintenance soon."
                 )
                 confidence = 0.92
             else:
                 reasoning.append(
-                    f"Step 1: Pressure {pressure} bar is {pct}% of max safe value "
+                    f"Step 1: Pressure {pressure} bar is {pressure_pct}% of max safe value "
                     f"({safe_max} bar) - within safe operating range."
                 )
         else:
@@ -163,7 +196,8 @@ class RuleBasedEngine:
         # ── Maintenance schedule analysis ────────────────────────────────────
         last_days_str = f"{last_service_days} days" if last_service_days else "unknown"
         interval_days = interval * 30
-        if last_service_days and last_service_days >= interval_days:
+        is_overdue = bool(last_service_days) and last_service_days >= interval_days
+        if is_overdue:
             reasoning.append(
                 f"Step 3: Last service was {last_days_str} ago. "
                 f"Recommended interval is {interval} months ({interval_days} days). "
@@ -181,17 +215,37 @@ class RuleBasedEngine:
                 f"Next service interval: {interval} months."
             )
 
+        # ── Cost & downtime: severity-adjusted against the routine baseline ──
+        is_urgent = (
+            (pressure_pct is not None and pressure_pct > 85)
+            or is_overdue
+            or (bool(temp_rise) and temp_rise > 20)
+        )
+        if is_urgent:
+            cost = float(round(base_cost * cost_multiplier))
+            downtime = float(round(base_downtime * downtime_multiplier, 1))
+            urgency_note = (
+                f" Urgent pricing applies (elevated pressure, overdue service, "
+                f"or reported symptoms): Rs.{int(base_cost):,} routine cost "
+                f"x{cost_multiplier:g}, {base_downtime}h routine downtime "
+                f"x{downtime_multiplier:g}."
+            )
+        else:
+            cost = base_cost
+            downtime = base_downtime
+            urgency_note = ""
+
         # ── Cost analysis ────────────────────────────────────────────────────
         if budget and cost > budget:
             reasoning.append(
-                f"Step 4: Estimated cost Rs.{cost:,} EXCEEDS budget Rs.{budget:,}. "
-                "Request budget approval or phased approach."
+                f"Step 4: Estimated cost Rs.{cost:,.0f} EXCEEDS budget Rs.{budget:,.0f}."
+                f"{urgency_note} Request budget approval or phased approach."
             )
             confidence -= 0.05
         else:
             reasoning.append(
-                f"Step 4: Estimated cost Rs.{cost:,} is within budget Rs.{int(budget):,}. "
-                f"Buffer: Rs.{int(budget - cost):,}."
+                f"Step 4: Estimated cost Rs.{cost:,.0f} is within budget "
+                f"Rs.{int(budget):,}. Buffer: Rs.{int(budget - cost):,}.{urgency_note}"
             )
 
         # ── Historical precedent ─────────────────────────────────────────────
@@ -211,7 +265,7 @@ class RuleBasedEngine:
             )
         elif intent == "cost_optimization":
             recommendation = (
-                f"Proceed with {equipment} maintenance (Rs.{cost:,}). "
+                f"Proceed with {equipment} maintenance (Rs.{cost:,.0f}). "
                 "Defer lower-priority equipment to next quarter."
             )
             risk_if_delayed = (
@@ -235,7 +289,7 @@ class RuleBasedEngine:
         else:  # schedule_maintenance / status_check / default
             recommendation = (
                 f"Schedule maintenance for {equipment} within the next 2 weeks. "
-                f"Estimated cost: Rs.{cost:,}, downtime: {downtime} hours."
+                f"Estimated cost: Rs.{cost:,.0f}, downtime: {downtime} hours."
             )
             risk_if_delayed = (
                 f"Delaying beyond {interval + 1} months risks unplanned failure "

@@ -12,6 +12,22 @@ from pathlib import Path
 OUT = Path("data/sample_docs")
 OUT.mkdir(parents=True, exist_ok=True)
 
+# Shared across every equipment record so it reaches an LLM's context
+# regardless of which specific record retrieval surfaces. Named fields
+# (routine_service_cost_inr, urgent_cost_multiplier) let both the rule-based
+# engine and a real LLM compute a severity-adjusted figure instead of quoting
+# one flat number for every query - the single, previous root cause of cost
+# and downtime never varying: a query with "pressure 4.9 bar, badly overdue"
+# got exactly the same Rs.35,000 as one with "pressure 4.2 bar, on schedule",
+# because the routine figure was the only number either engine ever saw.
+SEVERITY_POLICY_NOTE = (
+    "Urgent pricing applies when operating pressure exceeds 85% of the safe "
+    "maximum, service is overdue beyond the compliance grace period, or "
+    "abnormal vibration/temperature symptoms are reported - reflecting "
+    "expedited parts sourcing, overtime labor, and more extensive inspection "
+    "under those conditions. Otherwise the routine figure applies."
+)
+
 
 # ── 1. equipment_specs.json ──────────────────────────────────────────────────
 
@@ -32,8 +48,11 @@ def gen_equipment_specs() -> None:
                 "installed_date": "2018-03-15",
                 "designed_lifespan_years": 10,
                 "maintenance_interval_months": 6,
-                "typical_service_cost_inr": 35000,
-                "typical_service_downtime_hours": 2.5,
+                "routine_service_cost_inr": 35000,
+                "routine_service_downtime_hours": 2.5,
+                "urgent_cost_multiplier": 1.35,
+                "urgent_downtime_multiplier": 1.6,
+                "urgency_policy": SEVERITY_POLICY_NOTE,
                 "last_major_inspection": "2026-03-15",
                 "next_scheduled_service": "2026-09-15",
             },
@@ -50,8 +69,11 @@ def gen_equipment_specs() -> None:
                 "installed_date": "2019-06-20",
                 "designed_lifespan_years": 15,
                 "maintenance_interval_months": 12,
-                "typical_service_cost_inr": 28000,
-                "typical_service_downtime_hours": 3.0,
+                "routine_service_cost_inr": 28000,
+                "routine_service_downtime_hours": 3.0,
+                "urgent_cost_multiplier": 1.3,
+                "urgent_downtime_multiplier": 1.5,
+                "urgency_policy": SEVERITY_POLICY_NOTE,
                 "last_major_inspection": "2025-06-20",
                 "next_scheduled_service": "2026-06-20",
             },
@@ -68,8 +90,11 @@ def gen_equipment_specs() -> None:
                 "installed_date": "2020-02-10",
                 "designed_lifespan_years": 12,
                 "maintenance_interval_months": 6,
-                "typical_service_cost_inr": 15000,
-                "typical_service_downtime_hours": 1.5,
+                "routine_service_cost_inr": 15000,
+                "routine_service_downtime_hours": 1.5,
+                "urgent_cost_multiplier": 1.3,
+                "urgent_downtime_multiplier": 1.5,
+                "urgency_policy": SEVERITY_POLICY_NOTE,
                 "last_major_inspection": "2026-02-10",
                 "next_scheduled_service": "2026-08-10",
             },
@@ -86,8 +111,11 @@ def gen_equipment_specs() -> None:
                 "installed_date": "2017-12-01",
                 "designed_lifespan_years": 20,
                 "maintenance_interval_months": 12,
-                "typical_service_cost_inr": 42000,
-                "typical_service_downtime_hours": 4.0,
+                "routine_service_cost_inr": 42000,
+                "routine_service_downtime_hours": 4.0,
+                "urgent_cost_multiplier": 1.4,
+                "urgent_downtime_multiplier": 1.75,
+                "urgency_policy": SEVERITY_POLICY_NOTE,
                 "last_major_inspection": "2025-12-01",
                 "next_scheduled_service": "2026-12-01",
             },
@@ -104,8 +132,11 @@ def gen_equipment_specs() -> None:
                 "installed_date": "2016-06-15",
                 "designed_lifespan_years": 25,
                 "maintenance_interval_months": 24,
-                "typical_service_cost_inr": 55000,
-                "typical_service_downtime_hours": 5.5,
+                "routine_service_cost_inr": 55000,
+                "routine_service_downtime_hours": 5.5,
+                "urgent_cost_multiplier": 1.45,
+                "urgent_downtime_multiplier": 1.8,
+                "urgency_policy": SEVERITY_POLICY_NOTE,
                 "last_major_inspection": "2024-06-15",
                 "next_scheduled_service": "2026-06-15",
             },

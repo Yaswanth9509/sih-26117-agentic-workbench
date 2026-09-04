@@ -24,8 +24,24 @@ from core.llm_engine import (
     GeminiEngine,
     LLMEngine,
     OllamaEngine,
+    RuleBasedEngine,
     _parse_json_response,
 )
+
+# Shape RetrievalAgent actually returns for the equipment_specs.json record -
+# see scripts/generate_sample_data.py, the real source of these field names.
+REACTOR_4_SPEC: dict[str, Any] = {
+    "id": "reactor-4",
+    "name": "Reactor-4",
+    "type": "reactor",
+    "maintenance_interval_months": 6,
+    "routine_service_cost_inr": 35000,
+    "routine_service_downtime_hours": 2.5,
+    "urgent_cost_multiplier": 1.35,
+    "urgent_downtime_multiplier": 1.6,
+    "urgency_policy": "Urgent pricing applies when overdue or symptomatic.",
+    "source": "equipment_specs.json",
+}
 
 VALID_PAYLOAD = {
     "reasoning": ["step 1", "step 2"],
@@ -392,3 +408,103 @@ class TestRouter:
         fake_now["t"] += 5.0  # inside the NEW cooldown window
         engine.generate_reasoning(**_reasoning_kwargs())
         assert calls["n"] == 2, "must not retry again until the new cooldown elapses"
+
+
+class TestRuleBasedEngineSeverityCost:
+    """
+    Regression: cost, downtime, and the maintenance interval used to come
+    from a hardcoded per-equipment table (COST_MAP/DOWNTIME_MAP/INTERVAL_MAP),
+    completely ignoring context_docs even though it was already a parameter.
+    Every query about the same equipment - routine or badly overdue alike -
+    produced the exact same figure, because that flat table was the only
+    place the number ever came from. Fixed by reading routine/urgent figures
+    from the retrieved equipment_specs.json record instead, so a genuinely
+    different query produces a genuinely different, still-explainable answer.
+    """
+
+    def test_routine_query_uses_the_routine_baseline(self):
+        result = RuleBasedEngine().generate(
+            equipment="reactor-4",
+            intent="schedule_maintenance",
+            current_state={"pressure_bar": 4.2, "last_service_days": 90},
+            context_docs=[REACTOR_4_SPEC],
+            constraints={"budget_inr": 100000},
+        )
+        assert result["cost_estimate_inr"] == 35000
+        assert result["downtime_hours"] == 2.5
+
+    def test_urgent_pressure_scales_cost_and_downtime_up(self):
+        """Same equipment, same call shape - only pressure changed."""
+        routine = RuleBasedEngine().generate(
+            equipment="reactor-4",
+            intent="schedule_maintenance",
+            current_state={"pressure_bar": 4.2, "last_service_days": 90},
+            context_docs=[REACTOR_4_SPEC],
+            constraints={"budget_inr": 100000},
+        )
+        urgent = RuleBasedEngine().generate(
+            equipment="reactor-4",
+            intent="schedule_maintenance",
+            # 4.9 / 5.0 max = 98% - above the 85% urgency threshold
+            current_state={"pressure_bar": 4.9, "last_service_days": 90},
+            context_docs=[REACTOR_4_SPEC],
+            constraints={"budget_inr": 100000},
+        )
+        assert urgent["cost_estimate_inr"] > routine["cost_estimate_inr"]
+        assert urgent["downtime_hours"] > routine["downtime_hours"]
+        assert urgent["cost_estimate_inr"] == 35000 * 1.35
+        assert urgent["downtime_hours"] == round(2.5 * 1.6, 1)
+
+    def test_overdue_service_alone_triggers_urgent_pricing(self):
+        """Normal pressure, but badly overdue - must still scale up."""
+        result = RuleBasedEngine().generate(
+            equipment="reactor-4",
+            intent="schedule_maintenance",
+            current_state={"pressure_bar": 4.0, "last_service_days": 400},
+            context_docs=[REACTOR_4_SPEC],
+            constraints={"budget_inr": 100000},
+        )
+        assert result["cost_estimate_inr"] > 35000
+
+    def test_reasoning_explains_the_urgent_multiplier(self):
+        """The cost step must say WHY it's higher, not just show a number."""
+        result = RuleBasedEngine().generate(
+            equipment="reactor-4",
+            intent="schedule_maintenance",
+            current_state={"pressure_bar": 4.9, "last_service_days": 90},
+            context_docs=[REACTOR_4_SPEC],
+            constraints={"budget_inr": 100000},
+        )
+        cost_step = next(s for s in result["reasoning"] if "Estimated cost" in s)
+        assert "Urgent pricing applies" in cost_step
+        assert "x1.35" in cost_step
+
+    def test_missing_equipment_doc_falls_back_without_crashing(self):
+        """Retrieval found nothing for this equipment - must degrade safely,
+        not crash, using the documented fallback constants."""
+        result = RuleBasedEngine().generate(
+            equipment="reactor-4",
+            intent="schedule_maintenance",
+            current_state={"pressure_bar": 4.2},
+            context_docs=[],  # nothing retrieved
+            constraints={"budget_inr": 100000},
+        )
+        assert result["cost_estimate_inr"] == RuleBasedEngine._FALLBACK_COST_INR
+        assert result["downtime_hours"] == RuleBasedEngine._FALLBACK_DOWNTIME_HOURS
+
+    def test_different_equipment_reads_its_own_spec_not_reactor4s(self):
+        """Guards against _find_equipment_doc matching the wrong record."""
+        pump_spec = {
+            **REACTOR_4_SPEC,
+            "id": "pump-a",
+            "routine_service_cost_inr": 15000,
+            "routine_service_downtime_hours": 1.5,
+        }
+        result = RuleBasedEngine().generate(
+            equipment="pump-a",
+            intent="schedule_maintenance",
+            current_state={"pressure_bar": 4.0, "last_service_days": 30},
+            context_docs=[REACTOR_4_SPEC, pump_spec],
+            constraints={"budget_inr": 100000},
+        )
+        assert result["cost_estimate_inr"] == 15000
