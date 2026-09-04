@@ -91,7 +91,13 @@ without checking for conflicts first.
 ### Agent 3 API contract:
   POST /analyze
     Request:  {"query": str, "user_id": str (optional)}
-    Response: {"decision_id": str, "recommendation": dict, "confidence": float, "inference_time_ms": int}
+    Response: {"decision_id": str, "equipment": str, "intent": str, "priority": str,
+               "current_state": dict, "analysis": dict, "recommendation": dict,
+               "validation": dict, "reasoning_chain": list[str], "metadata": dict,
+               "audit_trail": dict, "status": str}
+    # confidence and total_time_ms live inside metadata (overall_confidence,
+    # total_time_ms), not at the top level - this replaces an earlier,
+    # never-implemented sketch of the shape.
   GET /health
     Response: {"status": "OK", "service": str, "version": str, "engine": str,
                "circuit_open": bool, "circuit_retry_in_sec": float | None,

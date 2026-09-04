@@ -33,8 +33,10 @@ zero orchestrator code, and zero API code.**
 
 ## Step 1: Local Mistral-7B (already implemented)
 
-The sovereign reasoning path is **written and wired**, not stubbed. It is
-inactive only because ollama is not installed on this machine.
+The sovereign reasoning path is **written and wired**, not stubbed - and
+already active on the primary dev machine (confirmed live: `/health` reports
+`engine: ollama`, real Mistral answers in ~6-7s on an RTX 4060). On a machine
+where ollama isn't installed yet, it stays inactive until it is:
 
 ```bash
 bash scripts/setup_llm.sh     # installs ollama, pulls mistral, verifies

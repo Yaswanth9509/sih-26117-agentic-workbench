@@ -32,7 +32,7 @@ workbench runs fully offline out of the box.
 ## Docker (single command)
 
 ```bash
-docker-compose up
+docker compose up
 # API:  http://localhost:8000
 # UI:   http://localhost:8501
 # Docs: http://localhost:8000/docs
@@ -164,7 +164,7 @@ Full request/response pairs: [docs/EXAMPLES.md](docs/EXAMPLES.md).
 ## Running Tests
 
 ```bash
-pytest tests/ -v                      # all 77 tests
+pytest tests/ -v                      # all 79 tests
 pytest tests/test_agents.py -v        # unit tests for all 5 agents
 pytest tests/test_workflow.py -v      # end-to-end pipeline
 pytest tests/test_security.py -v      # sanitization + rate limiting
@@ -246,7 +246,7 @@ sih-26117-agentic-workbench/
 
 ## SIH Hackathon: Problem Statement 26117
 
-Developed for Smart India Hackathon 2025.
+Developed for Smart India Hackathon 2026.
 Team: MRPL On-Premise AI Workbench
 Constraint: decision-making must be able to run entirely on MRPL's own
 infrastructure — see [docs/MIGRATION.md](docs/MIGRATION.md) for how the MVP

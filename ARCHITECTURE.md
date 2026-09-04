@@ -40,6 +40,16 @@ Engineer (Browser)
   data/audit_logs/decisions.jsonl (append-only, immutable)
 ```
 
+**Out-of-scope short-circuit:** if Agent 1 can't match one of the 5 supported
+equipment items, the orchestrator returns an honest "outside supported scope"
+response immediately after Agent 1 - Agents 2-5 never run. Earlier behavior
+ran the full pipeline anyway, which meant an unrelated question (e.g. sales
+figures) still produced a misleading `APPROVED, 100% compliance` card, since
+the 5 business rules vacuously pass on zeroed cost/downtime. Same top-level
+JSON shape either way (`validation.status="OUT_OF_SCOPE"` instead of a real
+verdict), so the API/UI need no special-casing. Not written to the audit
+trail - it isn't a maintenance decision.
+
 ---
 
 ## Component Details
@@ -187,7 +197,7 @@ sih-26117-agentic-workbench/
 │   └── tfidf_index.pkl Cached TF-IDF index
 ├── orchestrator/       Pipeline workflow + audit logging
 ├── scripts/            Data generator + test runners
-├── tests/              44 tests (agent/workflow/security)
+├── tests/              79 tests (agent/workflow/security/providers/UI)
 ├── ui/                 Streamlit dashboard
 ├── Dockerfile
 ├── docker-compose.yml
@@ -216,7 +226,7 @@ uvicorn api.main:app --host 0.0.0.0 --port 8000
 streamlit run ui/streamlit_app.py --server.port 8501
 
 # Option B: Docker
-docker-compose up
+docker compose up
 
 # API docs
 http://localhost:8000/docs

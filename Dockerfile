@@ -1,6 +1,6 @@
 ﻿# MRPL Agentic Workbench
 # Build: docker build -t mrpl-workbench .
-# Run:   docker-compose up
+# Run:   docker compose up
 
 FROM python:3.12-slim
 
