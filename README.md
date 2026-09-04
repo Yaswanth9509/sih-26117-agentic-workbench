@@ -27,11 +27,11 @@ streamlit run ui/streamlit_app.py --server.port 8501  # Terminal 2
 Open **http://localhost:8501**. No key or configuration is required — the
 workbench runs fully offline out of the box.
 
-Click **🎬 How This Works** at the top of the page for a self-contained,
-animated walkthrough of the problem, the solution, the system design,
-real-world applications, and the economics — written for a non-technical
-audience (`ui/how_it_works.html`, no network calls, doesn't need the API
-running).
+Click **🎬 How This Works** at the top of the page — opens in a new tab: a
+self-contained, animated walkthrough of the problem, the solution, the
+system design, real-world applications, and the economics, written for a
+non-technical audience (`ui/static/how_it_works.html`, served directly by
+Streamlit, no network calls, doesn't need the FastAPI backend running).
 
 ---
 
