@@ -251,3 +251,4 @@ Team: MRPL On-Premise AI Workbench
 Constraint: decision-making must be able to run entirely on MRPL's own
 infrastructure — see [docs/MIGRATION.md](docs/MIGRATION.md) for how the MVP
 maps onto that deployment.
+Full problem statement: [SIH26117_COMPLETE_SPEC.md](SIH26117_COMPLETE_SPEC.md).

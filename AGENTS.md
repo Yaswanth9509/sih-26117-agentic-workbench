@@ -19,8 +19,9 @@ interfaces, see `docs/MIGRATION.md`:
 - Reasoning: rule-based engine + optional Gemini/Groq now; Mistral-7B via ollama
   is the production path and is already implemented (`OllamaEngine`).
 
-**Full spec:** See `../SIH26117_COMPLETE_SPEC.md` for complete technical details, exact I/O formats,
-code templates, and acceptance criteria.
+**Full spec:** See [`SIH26117_COMPLETE_SPEC.md`](SIH26117_COMPLETE_SPEC.md) for
+complete technical details, exact I/O formats, code templates, and acceptance
+criteria.
 
 ---
 
