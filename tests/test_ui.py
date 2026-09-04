@@ -58,6 +58,27 @@ class TestAppLoads:
         messages += [str(m.value) for m in app.sidebar.error]
         assert any("API:" in m for m in messages), messages
 
+    def test_how_it_works_opens_and_closes_cleanly(self):
+        """
+        The jury-facing explainer (ui/how_it_works.html) replaces the normal
+        workbench view via st.iframe and must round-trip without exceptions:
+        open it, confirm the real (non-decorative) Back button appears, use
+        it, and confirm the query workbench is exactly as it was before.
+        """
+        app = _run_app()
+        how_btn = [b for b in app.button if "How This Works" in str(b.label)]
+        assert how_btn, "How This Works button not found"
+
+        how_btn[0].click().run()
+        assert not app.exception, [str(e.value) for e in app.exception]
+        back_btn = [b for b in app.button if "Back to the Workbench" in str(b.label)]
+        assert back_btn, "no working Back button while the explainer is open"
+
+        back_btn[0].click().run()
+        assert not app.exception, [str(e.value) for e in app.exception]
+        assert any("Analyze" in str(b.label) for b in app.button)
+        assert len(app.text_area) == 1
+
 
 @pytest.mark.skipif(not _api_is_up(), reason="backend not running")
 class TestQueryFlow:

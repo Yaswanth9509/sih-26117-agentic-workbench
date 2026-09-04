@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import os
 import time
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -51,6 +52,9 @@ def _safe_number(value: Any, default: float = 0.0) -> float:
         return float(value)
     except (TypeError, ValueError):
         return default
+
+
+HOW_IT_WORKS_PATH = Path(__file__).parent / "how_it_works.html"
 
 
 @st.cache_data(ttl=5, show_spinner=False)
@@ -145,7 +149,29 @@ with st.sidebar:
 # ── Main area ──────────────────────────────────────────────────────────────────
 st.markdown("# 🏭 MRPL Agentic Workbench")
 st.markdown("*Sovereign On-Premise AI for Maintenance Decision Support*")
+
+st.session_state.setdefault("show_how_it_works", False)
+
+hdr_l, hdr_r = st.columns([5, 2])
+with hdr_r:
+    if st.button(
+        "🎬 How This Works",
+        use_container_width=True,
+        help="A plain-English walkthrough for a non-technical audience: the "
+        "problem, the solution, the system design, and why it's worth it.",
+    ):
+        st.session_state["show_how_it_works"] = True
+        st.rerun()
+
 st.divider()
+
+# ── Presentation mode: the animated explainer replaces the workbench ───────────
+if st.session_state["show_how_it_works"]:
+    if st.button("← Back to the Workbench", type="primary"):
+        st.session_state["show_how_it_works"] = False
+        st.rerun()
+    st.iframe(HOW_IT_WORKS_PATH, height="content")
+    st.stop()
 
 # ── Query input ───────────────────────────────────────────────────────────────
 col_q, col_btn = st.columns([5, 1])

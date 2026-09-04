@@ -46,6 +46,16 @@ All three are valid; none of them means something is broken.
 Then open **http://localhost:8501** in a browser and submit one of the
 sample queries from the sidebar.
 
+## For the jury: start with "How This Works"
+
+Before diving into a live query, click the **🎬 How This Works** button at
+the top of the page. It replaces the workbench with a self-contained,
+animated walkthrough — the problem, the solution, the 5-agent pipeline, real-
+world applications, and the economics — written for someone with zero
+technical background. No network calls, no dependency on the API being up;
+it's a static page that opens instantly. Click **← Back to the Workbench**
+to return and run a real query.
+
 ## If something looks wrong
 
 **`docker compose up` fails or hangs on build**
