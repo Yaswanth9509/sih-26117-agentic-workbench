@@ -98,9 +98,24 @@ class RetrievalAgent(BaseAgent):
             eq_id = equipment.lower()
             relevant = [d for d in merged if eq_id in str(d).lower()]
             if relevant:
-                # Ensure equipment-specific docs are first, then general
+                # Among equipment-relevant docs, the canonical spec record
+                # goes first. Several documents mention the same equipment
+                # ID (maintenance_schedule.csv, service_logs.txt, ...), so
+                # "equipment-relevant" alone doesn't guarantee the one
+                # record ReasoningAgent's providers depend on for cost and
+                # downtime survives into context_docs[:3] - reproduced live:
+                # it ranked 4th of 5 by raw similarity for a real query, so
+                # every provider (rule-based and a live ollama call alike)
+                # saw a different, unrelated document instead and the LLM
+                # returned no cost figure at all rather than guess.
+                spec = [
+                    d
+                    for d in relevant
+                    if str(d.get("source", "")) == "equipment_specs.json"
+                ]
+                other_relevant = [d for d in relevant if d not in spec]
                 rest = [d for d in merged if d not in relevant]
-                merged = (relevant + rest)[:top_k]
+                merged = (spec + other_relevant + rest)[:top_k]
 
         return {
             "documents": merged,

@@ -131,6 +131,41 @@ class TestRetrievalAgent:
         r = asyncio.run(self.agent.execute({"equipment": "", "queries": []}))
         assert r["status"] in ("SUCCESS", "PARTIAL")
 
+    def test_equipment_specs_record_always_ranks_first(self):
+        """
+        Regression, reproduced live: for a real query, equipment_specs.json
+        (which carries routine_service_cost_inr / urgent_cost_multiplier -
+        the only source ReasoningAgent's providers have for cost/downtime)
+        ranked 4th of 5 by raw similarity, behind maintenance_schedule.csv
+        and a service log entry that both also mention "reactor-4". Since
+        only the top-3 documents reach an LLM's prompt, it saw an unrelated
+        document instead and returned no cost figure at all. The canonical
+        spec record must be promoted to position 0 whenever it's present
+        among the equipment-relevant results, not left to raw TF-IDF rank.
+        """
+        r = asyncio.run(
+            self.agent.execute(
+                {
+                    "equipment": "reactor-4",
+                    "queries": [
+                        "schedule_maintenance",
+                        "Reactor-4 pressure 4.9 bar, last service 400 days "
+                        "ago, budget Rs.100000. Schedule?",
+                    ],
+                    "top_k": 5,
+                }
+            )
+        )
+        docs = r["documents"]
+        assert docs, "no documents retrieved"
+        assert docs[0].get("source") == "equipment_specs.json"
+        assert docs[0].get("id") == "reactor-4"
+        assert "routine_service_cost_inr" in docs[0]
+        # Must still be within the [:3] slice the reasoning prompt actually
+        # sends - position 0 trivially satisfies this, but assert the
+        # invariant explicitly since that's the thing that broke.
+        assert any(d.get("source") == "equipment_specs.json" for d in docs[:3])
+
 
 # ── Agent 3 ──────────────────────────────────────────────────────────────────
 class TestReasoningAgent:

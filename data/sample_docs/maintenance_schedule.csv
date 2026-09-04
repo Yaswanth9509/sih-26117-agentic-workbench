@@ -1,6 +1,6 @@
-equipment_id,equipment_name,service_interval_months,last_service_date,typical_cost_inr,typical_downtime_hours,compliance_status,next_due_date,previous_services,avg_issue_rate_percent
-reactor-4,Reactor-4,6,2026-03-15,35000,2.5,ON_SCHEDULE,2026-09-15,8,12
-compressor-b,Compressor-B,12,2025-06-20,28000,3.0,ON_SCHEDULE,2026-06-20,5,8
-pump-a,Pump-A,6,2026-02-10,15000,1.5,APPROACHING,2026-08-10,10,6
-exchanger-c,Heat-Exchanger-C,12,2025-12-01,42000,4.0,COMING_DUE,2026-12-01,6,15
-separator-d,Separator-D,24,2024-06-15,55000,5.5,OVERDUE,2026-06-15,3,20
+equipment_id,equipment_name,service_interval_months,last_service_date,compliance_status,next_due_date,previous_services,avg_issue_rate_percent
+reactor-4,Reactor-4,6,2026-03-15,ON_SCHEDULE,2026-09-15,8,12
+compressor-b,Compressor-B,12,2025-06-20,ON_SCHEDULE,2026-06-20,5,8
+pump-a,Pump-A,6,2026-02-10,APPROACHING,2026-08-10,10,6
+exchanger-c,Heat-Exchanger-C,12,2025-12-01,COMING_DUE,2026-12-01,6,15
+separator-d,Separator-D,24,2024-06-15,OVERDUE,2026-06-15,3,20

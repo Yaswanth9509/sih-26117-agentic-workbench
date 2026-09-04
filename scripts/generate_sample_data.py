@@ -152,14 +152,22 @@ def gen_equipment_specs() -> None:
 
 
 def gen_maintenance_schedule() -> None:
+    # No cost/downtime columns here on purpose: those figures live in exactly
+    # one place (equipment_specs.json's routine_service_cost_inr +
+    # urgent_cost_multiplier), so there is exactly one number to keep
+    # correct instead of three drifting copies. This document used to carry
+    # its own flat typical_cost_inr/typical_downtime_hours - identical in
+    # spirit to equipment_specs.json's old static field, and just as static -
+    # and because retrieval often ranked this file ABOVE equipment_specs.json
+    # for a maintenance-scheduling query, a real LLM would frequently see
+    # this document's flat number instead of the severity-aware one, even
+    # after equipment_specs.json itself was fixed to vary by urgency.
     rows = [
         [
             "equipment_id",
             "equipment_name",
             "service_interval_months",
             "last_service_date",
-            "typical_cost_inr",
-            "typical_downtime_hours",
             "compliance_status",
             "next_due_date",
             "previous_services",
@@ -170,8 +178,6 @@ def gen_maintenance_schedule() -> None:
             "Reactor-4",
             "6",
             "2026-03-15",
-            "35000",
-            "2.5",
             "ON_SCHEDULE",
             "2026-09-15",
             "8",
@@ -182,8 +188,6 @@ def gen_maintenance_schedule() -> None:
             "Compressor-B",
             "12",
             "2025-06-20",
-            "28000",
-            "3.0",
             "ON_SCHEDULE",
             "2026-06-20",
             "5",
@@ -194,8 +198,6 @@ def gen_maintenance_schedule() -> None:
             "Pump-A",
             "6",
             "2026-02-10",
-            "15000",
-            "1.5",
             "APPROACHING",
             "2026-08-10",
             "10",
@@ -206,8 +208,6 @@ def gen_maintenance_schedule() -> None:
             "Heat-Exchanger-C",
             "12",
             "2025-12-01",
-            "42000",
-            "4.0",
             "COMING_DUE",
             "2026-12-01",
             "6",
@@ -218,8 +218,6 @@ def gen_maintenance_schedule() -> None:
             "Separator-D",
             "24",
             "2024-06-15",
-            "55000",
-            "5.5",
             "OVERDUE",
             "2026-06-15",
             "3",
@@ -348,6 +346,15 @@ def gen_safety_protocols() -> None:
 
 
 def gen_cost_estimates() -> None:
+    # routine_* rows' totals are reconciled to equal equipment_specs.json's
+    # routine_service_cost_inr exactly (previously off by Rs.200-2,000 per
+    # equipment - reactor-4's own labor+material didn't even sum to its
+    # listed total: 12000+22000=34000, not the 34500 shown). urgent_expedited
+    # rows are new: labor and material scaled by equipment_specs.json's own
+    # urgent_cost_multiplier, so this document tells the same severity story
+    # instead of a competing flat one - retrieval can surface either the
+    # routine or the expedited row and a reader still gets a consistent
+    # figure, matching whatever equipment_specs.json would compute.
     rows = [
         [
             "equipment_id",
@@ -365,13 +372,25 @@ def gen_cost_estimates() -> None:
             "reactor-4",
             "routine_6m",
             "12000",
-            "22000",
-            "34500",
+            "23000",
+            "35000",
             "Thermax_Services",
             "A",
             "2026-03-15",
             "Yes",
             "90",
+        ],
+        [
+            "reactor-4",
+            "urgent_expedited",
+            "16200",
+            "31050",
+            "47250",
+            "Thermax_Services",
+            "A",
+            "2026-03-15",
+            "Yes",
+            "30",
         ],
         [
             "reactor-4",
@@ -389,13 +408,25 @@ def gen_cost_estimates() -> None:
             "compressor-b",
             "routine_12m",
             "10000",
-            "17500",
-            "27500",
+            "18000",
+            "28000",
             "Atlas_Copco_India",
             "A",
             "2025-06-20",
             "Yes",
             "90",
+        ],
+        [
+            "compressor-b",
+            "urgent_expedited",
+            "13000",
+            "23400",
+            "36400",
+            "Atlas_Copco_India",
+            "A",
+            "2025-06-20",
+            "Yes",
+            "30",
         ],
         [
             "compressor-b",
@@ -413,13 +444,25 @@ def gen_cost_estimates() -> None:
             "pump-a",
             "routine_6m",
             "5000",
-            "9800",
-            "14800",
+            "10000",
+            "15000",
             "KSB_India",
             "B",
             "2026-02-10",
             "Yes",
             "60",
+        ],
+        [
+            "pump-a",
+            "urgent_expedited",
+            "6500",
+            "13000",
+            "19500",
+            "KSB_India",
+            "B",
+            "2026-02-10",
+            "Yes",
+            "30",
         ],
         [
             "pump-a",
@@ -447,6 +490,18 @@ def gen_cost_estimates() -> None:
         ],
         [
             "exchanger-c",
+            "urgent_expedited",
+            "25200",
+            "33600",
+            "58800",
+            "HRS_Process_Systems",
+            "A",
+            "2025-12-01",
+            "Yes",
+            "30",
+        ],
+        [
+            "exchanger-c",
             "tube_bundle_replace",
             "40000",
             "80000",
@@ -461,13 +516,25 @@ def gen_cost_estimates() -> None:
             "separator-d",
             "routine_24m",
             "20000",
-            "33000",
-            "53000",
+            "35000",
+            "55000",
             "Descon_Engineering",
             "B",
             "2024-06-15",
             "Yes",
             "120",
+        ],
+        [
+            "separator-d",
+            "urgent_expedited",
+            "29000",
+            "50750",
+            "79750",
+            "Descon_Engineering",
+            "B",
+            "2024-06-15",
+            "Yes",
+            "30",
         ],
         [
             "separator-d",
