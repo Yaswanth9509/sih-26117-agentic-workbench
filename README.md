@@ -2,11 +2,50 @@
 
 **Sovereign On-Premise Agentic AI for Maintenance Decision Support**
 
-A 5-agent AI pipeline that helps MRPL engineers make data-driven maintenance
-decisions from plain-English questions — with every recommendation validated
-against business rules and written to an append-only audit trail.
+Built for Smart India Hackathon 2026, Problem Statement 26117, by team **Edgerunners**.
 
-**~270 MB install. No model downloads. Runs with zero network access.**
+---
+
+## The problem
+
+MRPL's maintenance engineers decide when to service, delay, or shut down
+equipment — reactors, compressors, pumps — using their own judgment against
+scattered spec sheets, service schedules, and cost records. That works, but
+it isn't fast, consistent, or auditable: two engineers reading the same
+numbers can reach different calls, and if a decision is questioned later,
+there's often no clear record of why it was made.
+
+## The solution
+
+Ask the workbench a plain-English question —
+*"Reactor-4 pressure 4.2 bar, last service 6 months, budget Rs.50000. When
+should we schedule maintenance?"* — and five specialized AI agents pull the
+real equipment spec, reason about the situation, check the reasoning against
+five hard business rules (cost, downtime, safety, compliance, history), and
+return one structured recommendation with a plain-English explanation.
+Every decision is written to an append-only audit trail, so nothing is a
+black box after the fact.
+
+It is designed to run **entirely on MRPL's own infrastructure — no query
+ever has to leave the plant** — and it degrades gracefully instead of
+failing: if the AI reasoning step is unavailable, a deterministic
+rule-based engine takes over automatically and still returns a safe,
+correctly-reasoned answer.
+
+---
+
+## For judges: the fastest way to see it
+
+1. **Run the Quick Start below** (3 commands, ~2 minutes, nothing to
+   configure).
+2. Once the UI is open, click **🎬 How This Works** at the top of the page.
+   It opens in a new tab and is a self-contained, animated, 3-minute
+   walkthrough of the problem, the solution, the system design, real-world
+   applications, and the economics — written for a **non-technical
+   audience**, no engineering background required. It needs no API key and
+   doesn't depend on the backend running.
+3. Come back to the main tab and try one of the [Example Queries](#example-queries)
+   to see the agents reason over real data live.
 
 ---
 
@@ -27,11 +66,7 @@ streamlit run ui/streamlit_app.py --server.port 8501  # Terminal 2
 Open **http://localhost:8501**. No key or configuration is required — the
 workbench runs fully offline out of the box.
 
-Click **🎬 How This Works** at the top of the page — opens in a new tab: a
-self-contained, animated walkthrough of the problem, the solution, the
-system design, real-world applications, and the economics, written for a
-non-technical audience (`ui/static/how_it_works.html`, served directly by
-Streamlit, no network calls, doesn't need the FastAPI backend running).
+**~270 MB install. No model downloads. Runs with zero network access.**
 
 ---
 
@@ -43,6 +78,34 @@ docker compose up
 # UI:   http://localhost:8501
 # Docs: http://localhost:8000/docs
 ```
+
+---
+
+## Architecture
+
+```
+Engineer Query (natural language)
+        |
+[Security: sanitize + injection screen + rate limit]
+        |
+Agent 1: QueryUnderstanding  -- intent, equipment, state, budget
+        |
+Agent 2: Retrieval           -- search over 5 MRPL documents (pluggable backend)
+        |
+Agent 3: Reasoning           -- ollama / gemini / groq / rule-based (pluggable)
+        |
+Agent 4: Validation          -- 5 business rules (cost, downtime, safety, compliance, history)
+        |
+Agent 5: Decision            -- final structured JSON + audit log entry
+        |
+FastAPI Response + Streamlit UI
+```
+
+Every agent is independently timeout-protected; a failure or timeout in any
+one of them degrades the answer rather than crashing the pipeline. If the
+reasoning agent itself can't produce an answer, the orchestrator falls back
+to the deterministic rule-based engine directly, so a request never
+hard-fails on this stage.
 
 ---
 
@@ -72,31 +135,6 @@ machine — this is the deployment model for MRPL. The two cloud providers exist
 so the system can demonstrate genuine LLM reasoning on a laptop without a 4 GB
 download; when one is active, query text goes to that vendor and the audit log
 says so. See [docs/MIGRATION.md](docs/MIGRATION.md).
-
----
-
-## Architecture
-
-```
-Engineer Query (natural language)
-        |
-[Security: sanitize + injection screen + rate limit]
-        |
-Agent 1: QueryUnderstanding  -- intent, equipment, state, budget
-        |
-Agent 2: Retrieval           -- search over 5 MRPL documents (pluggable backend)
-        |
-Agent 3: Reasoning           -- ollama / gemini / groq / rule-based (pluggable)
-        |
-Agent 4: Validation          -- 5 business rules (cost, downtime, safety, compliance, history)
-        |
-Agent 5: Decision            -- final structured JSON + audit log entry
-        |
-FastAPI Response + Streamlit UI
-```
-
-Every agent is independently timeout-protected; a failure or timeout in any one
-of them degrades the answer rather than crashing the pipeline.
 
 ---
 
@@ -170,7 +208,7 @@ Full request/response pairs: [docs/EXAMPLES.md](docs/EXAMPLES.md).
 ## Running Tests
 
 ```bash
-pytest tests/ -v                      # all 79 tests
+pytest tests/ -v                      # all 93 tests
 pytest tests/test_agents.py -v        # unit tests for all 5 agents
 pytest tests/test_workflow.py -v      # end-to-end pipeline
 pytest tests/test_security.py -v      # sanitization + rate limiting
@@ -191,7 +229,8 @@ Pre-deployment gate:
 bash scripts/run_checks.sh
 ```
 
-### Concurrency
+<details>
+<summary><strong>Concurrency and load-test results</strong> (measured, click to expand)</summary>
 
 ```bash
 uvicorn api.main:app --port 8000        # terminal 1
@@ -230,6 +269,8 @@ Single-query (non-concurrent) latency, the actual demo scenario: `gemini`
 ~2.6s, `rule-based` ~30ms, `ollama` (RTX 4060, model warm) ~6-7s - real
 generative output from the local model, slightly over the 6s target.
 
+</details>
+
 ---
 
 ## Project Structure
@@ -245,7 +286,7 @@ sih-26117-agentic-workbench/
    orchestrator/    Pipeline workflow + audit logging
    scripts/         Data generator, LLM setup, pre-deploy checks
    tests/           Unit + integration + security + provider tests
-   ui/              Streamlit dashboard
+   ui/              Streamlit dashboard (ui/static/ serves the How This Works page)
 ```
 
 ---
@@ -253,7 +294,7 @@ sih-26117-agentic-workbench/
 ## SIH Hackathon: Problem Statement 26117
 
 Developed for Smart India Hackathon 2026.
-Team: Edgerunners
+Team: **Edgerunners**
 Constraint: decision-making must be able to run entirely on MRPL's own
 infrastructure — see [docs/MIGRATION.md](docs/MIGRATION.md) for how the MVP
 maps onto that deployment.
