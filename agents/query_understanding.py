@@ -37,7 +37,7 @@ class QueryUnderstandingAgent(BaseAgent):
         q_lower = query.lower()
 
         # ── 1. Detect equipment ──────────────────────────────────────────────
-        equipment = self._detect_equipment(q_lower)
+        equipment, loose_keyword = self._detect_equipment(q_lower)
 
         # ── 2. Detect intent ─────────────────────────────────────────────────
         intent, intent_conf = self._detect_intent(q_lower)
@@ -54,6 +54,13 @@ class QueryUnderstandingAgent(BaseAgent):
         return {
             "intent": intent,
             "equipment": equipment or "unknown",
+            # Set only when equipment was inferred from a generic type word
+            # ("reactor", "pump", ...) rather than a specific ID or alias -
+            # e.g. "the reactor" or "all the reactors". DecisionAgent uses
+            # this to disclose that only one unit of that type is in scope,
+            # rather than silently answering about a single unit when the
+            # question may have meant the whole fleet or was ambiguous.
+            "equipment_loose_keyword": loose_keyword,
             "current_state": current_state,
             "constraints": constraints,
             "confidence": confidence,
@@ -62,15 +69,21 @@ class QueryUnderstandingAgent(BaseAgent):
 
     # ── Helpers ──────────────────────────────────────────────────────────────
 
-    def _detect_equipment(self, q: str) -> str | None:
+    def _detect_equipment(self, q: str) -> tuple[str | None, str | None]:
+        """
+        Returns (equipment_id, loose_keyword). loose_keyword is non-None only
+        when the match came from a generic type word, not a specific ID or
+        a known alias - the caller uses this to tell an honest match from a
+        guessed one.
+        """
         # Direct match against supported IDs
         for eq in SUPPORTED_EQUIPMENT:
             if eq in q:
-                return eq
+                return eq, None
         # Try aliases
         for alias, canonical in EQUIPMENT_ALIASES.items():
             if alias in q:
-                return canonical
+                return canonical, None
         # Loose partial match (e.g. "reactor" -> "reactor-4")
         loose_map = {
             "reactor": "reactor-4",
@@ -81,8 +94,8 @@ class QueryUnderstandingAgent(BaseAgent):
         }
         for keyword, eq_id in loose_map.items():
             if keyword in q:
-                return eq_id
-        return None
+                return eq_id, keyword
+        return None, None
 
     def _detect_intent(self, q: str) -> tuple[str, float]:
         scores: dict[str, int] = {}

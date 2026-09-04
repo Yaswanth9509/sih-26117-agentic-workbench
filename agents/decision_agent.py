@@ -55,9 +55,26 @@ class DecisionAgent(BaseAgent):
         cost = reasoning.get("cost_estimate_inr", 0)
         downtime = reasoning.get("downtime_hours", 0)
         risk = reasoning.get("risk_if_delayed", "")
-        reasoning_steps = reasoning.get("reasoning", [])
+        reasoning_steps = list(reasoning.get("reasoning", []))
         engine_used = reasoning.get("engine_used", "rule-based")
         reason_confidence = reasoning.get("confidence", 0.0)
+
+        # The query named a general type ("the reactor", "all the reactors")
+        # rather than a specific unit. QueryUnderstandingAgent still had to
+        # pick one to reason about - disclose that choice up front instead of
+        # silently answering as if the question had been about a single named
+        # unit all along. Reproduced live: "should we schedule another
+        # inspection for all the reactors" answered only about reactor-4 with
+        # no indication that reactor-4 is the only reactor this system knows.
+        loose_keyword = understanding.get("equipment_loose_keyword")
+        if loose_keyword:
+            reasoning_steps.insert(
+                0,
+                f"Step 0: Your question referred to '{loose_keyword}' generically. "
+                f"This system currently tracks exactly one {loose_keyword} "
+                f"({equipment}), so this answer is specific to {equipment} - "
+                "not a fleet-wide assessment.",
+            )
 
         validation_status = validation.get("validation_status", "UNKNOWN")
         compliance_score = validation.get("compliance_score", 0)

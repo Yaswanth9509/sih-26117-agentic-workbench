@@ -64,6 +64,37 @@ class TestQueryUnderstanding:
         )
         assert r["equipment"] == "exchanger-c"
 
+    def test_loose_type_match_flags_the_keyword(self):
+        """
+        Regression, reproduced live: "should we schedule another inspection
+        for all the reactors" matched reactor-4 via the generic "reactor"
+        keyword fallback and answered as if it were a precise, singular
+        question - with no indication only one reactor exists in scope.
+        A generic-keyword match must be distinguishable from a specific one.
+        """
+        r = asyncio.run(
+            self.agent.execute(
+                {
+                    "query": "should we schedule another inspection for all "
+                    "the reactors this month or are specific ones enough?"
+                }
+            )
+        )
+        assert r["equipment"] == "reactor-4"
+        assert r["equipment_loose_keyword"] == "reactor"
+
+    def test_specific_equipment_id_is_not_flagged_as_loose(self):
+        """A query naming the exact unit must not trigger the disclosure."""
+        r = asyncio.run(self.agent.execute({"query": "reactor-4 pressure 4.2 bar"}))
+        assert r["equipment"] == "reactor-4"
+        assert r["equipment_loose_keyword"] is None
+
+    def test_known_alias_is_not_flagged_as_loose(self):
+        """A known alias ('heat exchanger') is specific, not a guess."""
+        r = asyncio.run(self.agent.execute({"query": "heat exchanger status check"}))
+        assert r["equipment"] == "exchanger-c"
+        assert r["equipment_loose_keyword"] is None
+
     def test_50k_budget_parsing(self):
         r = asyncio.run(self.agent.execute({"query": "pump-a service, budget Rs.50K"}))
         assert r["constraints"]["budget_inr"] == 50000

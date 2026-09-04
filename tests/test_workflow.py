@@ -152,6 +152,28 @@ class TestWorkflow:
         assert r["recommendation"]["action"] != "Monitor Equipment Status"
         assert "reactor-4" in r["recommendation"]["detail"]
 
+    def test_generic_type_query_discloses_the_narrowing(self):
+        """
+        Regression, reported and reproduced live: asking about "all the
+        reactors" got an answer scoped silently to reactor-4, with nothing
+        telling the engineer that reactor-4 is the only reactor this system
+        tracks, or that a fleet-wide question got narrowed to one unit.
+        """
+        r = self._run(
+            "should we schedule another inspection for all the reactors "
+            "this month or are specific ones enough?"
+        )
+        assert r["equipment"] == "reactor-4"
+        assert any(
+            "reactor-4" in step and "generically" in step
+            for step in r["reasoning_chain"]
+        ), r["reasoning_chain"]
+
+    def test_specific_query_has_no_narrowing_disclosure(self):
+        """A precisely-named unit must not carry the disclosure step."""
+        r = self._run("Reactor-4 pressure 4.2 bar, last service 6 months.")
+        assert not any("generically" in step for step in r["reasoning_chain"])
+
     def test_in_scope_query_unaffected_by_scope_check(self):
         """The scope short-circuit must not fire for a real, in-scope query."""
         r = self._run("Reactor-4 pressure 4.2 bar, last service 6 months.")
