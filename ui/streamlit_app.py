@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import os
 import time
-from pathlib import Path
 from typing import Any
 
 import httpx
@@ -54,7 +53,10 @@ def _safe_number(value: Any, default: float = 0.0) -> float:
         return default
 
 
-HOW_IT_WORKS_PATH = Path(__file__).parent / "how_it_works.html"
+# Served by Streamlit's own static-file route (server.enableStaticServing in
+# .streamlit/config.toml), from ui/static/ - not read into Python at all, so
+# opening it needs neither this app nor the FastAPI backend to do any work.
+HOW_IT_WORKS_URL = "app/static/how_it_works.html"
 
 
 @st.cache_data(ttl=5, show_spinner=False)
@@ -150,35 +152,24 @@ with st.sidebar:
 st.markdown("# 🏭 MRPL Agentic Workbench")
 st.markdown("*Sovereign On-Premise AI for Maintenance Decision Support*")
 
-st.session_state.setdefault("show_how_it_works", False)
-
 hdr_l, hdr_r = st.columns([5, 2])
 with hdr_r:
-    if st.button(
+    # A real new tab, not an embedded panel: the explainer was designed as a
+    # full-viewport experience (fixed nav bar, chapter-dot navigation, a
+    # mouse-follow spotlight) and fighting a fixed-height iframe to approximate
+    # that was more fragile than just letting it be its own page. Streamlit's
+    # own static-file route serves it directly, so opening it needs neither
+    # this script nor the FastAPI backend to do any work.
+    st.link_button(
         "🎬 How This Works",
+        HOW_IT_WORKS_URL,
         use_container_width=True,
-        help="A plain-English walkthrough for a non-technical audience: the "
-        "problem, the solution, the system design, and why it's worth it.",
-    ):
-        st.session_state["show_how_it_works"] = True
-        st.rerun()
+        help="Opens in a new tab: a plain-English walkthrough for a "
+        "non-technical audience - the problem, the solution, the system "
+        "design, and why it's worth it.",
+    )
 
 st.divider()
-
-# ── Presentation mode: the animated explainer replaces the workbench ───────────
-if st.session_state["show_how_it_works"]:
-    if st.button("← Back to the Workbench", type="primary"):
-        st.session_state["show_how_it_works"] = False
-        st.rerun()
-    # Fixed height with the explainer scrolling INSIDE it - deliberately not
-    # height="content". An auto-sized iframe is as tall as its content, so it
-    # never scrolls internally, which breaks three things at once: the page's
-    # own "Back to top" button (window.scrollTo on a window with no scrollbar
-    # does nothing), the scroll-progress rail (scrollTop is permanently 0),
-    # and the height itself (measured once at load, so a different window
-    # width reflows the content and leaves dead space below it).
-    st.iframe(HOW_IT_WORKS_PATH, height=760)
-    st.stop()
 
 # ── Query input ───────────────────────────────────────────────────────────────
 col_q, col_btn = st.columns([5, 1])

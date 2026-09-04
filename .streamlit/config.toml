@@ -20,3 +20,7 @@ gatherUsageStats = false
 
 [server]
 headless = true
+# Serves ui/static/*  ->  <host>/app/static/*  at the Streamlit port itself.
+# Used for the "How This Works" explainer, so opening it doesn't require the
+# FastAPI backend to be running - it's a plain static file, not an API call.
+enableStaticServing = true
